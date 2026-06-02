@@ -1,7 +1,12 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  // COOP/COEP headers sadece FFmpeg kullanan sayfalara — diğer route'larda Supabase auth'u kırar
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '50mb',
+    },
+  },
+
   async headers() {
     return [
       {

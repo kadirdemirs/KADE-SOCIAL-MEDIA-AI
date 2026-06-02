@@ -38,31 +38,52 @@ function encodeWAV(buffer: AudioBuffer): Blob {
 
 // ─── Audio extraction with Web Audio API (NO FFmpeg, NO download) ─────────────
 async function extractAudio(file: File, onMsg: (m: string) => void): Promise<File> {
-  onMsg('Video okunuyor...')
-  const arrayBuffer = await file.arrayBuffer()
-
-  onMsg('Ses kanalı ayrıştırılıyor...')
-  const tmpCtx = new AudioContext()
-  let original: AudioBuffer
-  try {
-    original = await tmpCtx.decodeAudioData(arrayBuffer)
-  } catch {
-    throw new Error('Video formatı desteklenmiyor. MP4 veya MOV kullan.')
-  } finally {
-    await tmpCtx.close()
+  // Yöntem 1: captureStream + MediaRecorder → WebM/Opus ~32kbps (en küçük boyut)
+  const supportsCapture = typeof (HTMLVideoElement.prototype as any).captureStream === 'function'
+  if (supportsCapture) {
+    try {
+      onMsg('Ses sıkıştırılıyor (WebM/Opus 16x hız)...')
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        const video = document.createElement('video')
+        const url = URL.createObjectURL(file)
+        video.src = url; video.muted = false
+        video.onloadedmetadata = () => {
+          try {
+            const stream: MediaStream = (video as any).captureStream()
+            const audioTracks = stream.getAudioTracks()
+            if (!audioTracks.length) throw new Error('no audio')
+            const mime = ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus']
+              .find(t => MediaRecorder.isTypeSupported(t)) ?? 'audio/webm'
+            const chunks: Blob[] = []
+            const rec = new MediaRecorder(new MediaStream(audioTracks), { mimeType: mime, audioBitsPerSecond: 32000 })
+            rec.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data) }
+            rec.onstop = () => { URL.revokeObjectURL(url); resolve(new Blob(chunks, { type: mime })) }
+            rec.onerror = reject
+            video.playbackRate = 16; video.play(); rec.start(200)
+            video.onended = () => rec.stop()
+            setTimeout(() => { try { if (rec.state === 'recording') rec.stop() } catch {} }, 180000)
+          } catch (err) { URL.revokeObjectURL(url); reject(err) }
+        }
+        video.onerror = () => { URL.revokeObjectURL(url); reject(new Error('load error')) }
+      })
+      onMsg('Ses hazır!')
+      return new File([blob], 'audio.webm', { type: blob.type })
+    } catch { /* fallback */ }
   }
 
-  onMsg('16 kHz\'e yeniden örnekleniyor...')
-  const SR = 16000
+  // Yöntem 2: Web Audio API → WAV 8 kHz (4 dakika video = ~3.7 MB, Groq destekler)
+  onMsg('Ses kanalı ayrıştırılıyor...')
+  const ab = await file.arrayBuffer()
+  const tmpCtx = new AudioContext()
+  let original: AudioBuffer
+  try { original = await tmpCtx.decodeAudioData(ab) }
+  catch { throw new Error('Video formatı desteklenmiyor. MP4 veya MOV kullan.') }
+  finally { await tmpCtx.close() }
+  onMsg('8 kHz WAV oluşturuluyor...')
+  const SR = 8000
   const offline = new OfflineAudioContext(1, Math.ceil(original.duration * SR), SR)
-  const src = offline.createBufferSource()
-  src.buffer = original
-  src.connect(offline.destination)
-  src.start(0)
-  const resampled = await offline.startRendering()
-
-  onMsg('WAV dosyası oluşturuluyor...')
-  return new File([encodeWAV(resampled)], 'audio.wav', { type: 'audio/wav' })
+  const src = offline.createBufferSource(); src.buffer = original; src.connect(offline.destination); src.start(0)
+  return new File([encodeWAV(await offline.startRendering())], 'audio.wav', { type: 'audio/wav' })
 }
 
 // ─── Caption builder ──────────────────────────────────────────────────────────
@@ -137,34 +158,61 @@ export default function ClipGeneratorPage() {
 
   const onDrop = (e: React.DragEvent) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleVideoSelect(f) }
 
-  // ── Ana analiz: Web Audio API ile ses çıkar, FFmpeg YOK ───────────────────
+  // ── Ana analiz: ses browser'dan direkt Groq'a → boyut sınırı YOK ────────────
   const handleAnalyze = async () => {
     if (!videoFile) return
     setError(''); setClips([]); setOutputClips({}); setFfmpegLog('')
 
     try {
-      // 1. Ses çıkar — tarayıcı API ile, indirme yok
+      // 1. Ses çıkar (Web Audio API / MediaRecorder — indirme yok)
       setStep('audio')
       const audioFile = await extractAudio(videoFile, (msg) => setStepMsg(msg))
 
-      // 2. Groq Whisper
+      // 2. Groq API key'ini al (rate-limited)
       setStep('transcribe')
-      setStepMsg('Ses metne çevriliyor...')
-      const fd = new FormData()
-      fd.append('audio', audioFile)
-      fd.append('videoDuration', String(videoDuration))
-      const res = await fetch('/api/generate/clips', { method: 'POST', body: fd })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'API hatası')
+      setStepMsg('Groq bağlantısı kuruluyor...')
+      const keyRes = await fetch('/api/groq-key')
+      if (!keyRes.ok) { const e = await keyRes.json(); throw new Error(e.error) }
+      const { key: groqKey } = await keyRes.json()
 
-      // 3. Analiz
+      // 3. Ses direkt Groq'a — Next.js bypass, boyut sınırı YOK
+      setStepMsg('Ses metne çevriliyor (Groq Whisper)...')
+      const groqFd = new FormData()
+      groqFd.append('file', audioFile)
+      groqFd.append('model', 'whisper-large-v3-turbo')
+      groqFd.append('response_format', 'verbose_json')
+      groqFd.append('timestamp_granularities[]', 'word')
+
+      const whisperRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${groqKey}` },
+        body: groqFd,
+      })
+      const whisperData = await whisperRes.json()
+      if (!whisperRes.ok) throw new Error(whisperData.error?.message || 'Groq Whisper hatası')
+
+      const transcript: string = whisperData.text?.trim() ?? ''
+      const words: Array<{ word: string; start: number; end: number }> = whisperData.words ?? []
+      const detectedLanguage: string = whisperData.language ?? ''
+
+      if (!transcript || transcript.length < 10) {
+        throw new Error('Transkripsiyon boş. Videoda konuşma var mı?')
+      }
+      setTranscript(transcript)
+      setDetectedLang(detectedLanguage)
+
+      // 4. Viral klip analizi (sadece metin JSON — boyut sorunu yok)
       setStep('analyze')
       setStepMsg('Viral kısımlar analiz ediliyor...')
-      await new Promise(r => setTimeout(r, 300))
+      const analyzeRes = await fetch('/api/generate/clips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript, words, videoDuration }),
+      })
+      const analyzeData = await analyzeRes.json()
+      if (!analyzeRes.ok) throw new Error(analyzeData.error || 'Analiz hatası')
 
-      setClips(data.clips)
-      setTranscript(data.fullTranscript)
-      setDetectedLang(data.detectedLanguage || '')
+      setClips(analyzeData.clips ?? [])
       setStep('done')
       setStepMsg('')
     } catch (err) {
