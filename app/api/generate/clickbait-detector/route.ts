@@ -1,15 +1,73 @@
-﻿import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { generateContent } from '@/lib/ai/provider'
 import { CLICKBAIT_SYSTEM_PROMPT, buildClickbaitPrompt } from '@/lib/ai/prompts'
+import { clampScore, extractJsonObject } from '@/lib/ai/json'
+import { rateLimit, getRateLimitKey } from '@/lib/rateLimit'
 import { AIModel } from '@/types'
+
+interface ClickbaitAlternative {
+  baslik: string
+  clickbait_skoru: number
+  aciklama: string
+}
+
+function textArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.map(String).filter(Boolean) : []
+}
+
+function normalizeAlternatives(value: unknown): ClickbaitAlternative[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .map((item) => {
+      if (typeof item === 'string') {
+        return { baslik: item, clickbait_skoru: 35, aciklama: 'Daha dengeli alternatif.' }
+      }
+      if (!item || typeof item !== 'object') return null
+      const obj = item as Record<string, unknown>
+      const baslik = String(obj.baslik || obj.title || obj.metin || '').trim()
+      if (!baslik) return null
+      return {
+        baslik,
+        clickbait_skoru: clampScore(obj.clickbait_skoru, 35),
+        aciklama: String(obj.aciklama || obj.reason || ''),
+      }
+    })
+    .filter((item): item is ClickbaitAlternative => Boolean(item))
+}
+
+function normalizeClickbait(value: Record<string, unknown>, title: string) {
+  return {
+    clickbait_skoru: clampScore(value.clickbait_skoru, 45),
+    seviye: String(value.seviye || 'dikkatli'),
+    sorunlar: textArray(value.sorunlar),
+    guclu_yonler: textArray(value.guclu_yonler),
+    alternatifler: normalizeAlternatives(value.alternatifler).slice(0, 5),
+    genel_tavsiye: String(value.genel_tavsiye || ''),
+    platform_normu: String(value.platform_normu || ''),
+    analizlenen_baslik: title,
+  }
+}
+
 export async function POST(req: NextRequest) {
+  const { allowed } = rateLimit(getRateLimitKey(req))
+  if (!allowed) return NextResponse.json({ error: 'Cok fazla istek. 1 dakika bekle.' }, { status: 429 })
+
   try {
     const { title, platform, model } = await req.json()
     if (!title || !model) return NextResponse.json({ error: 'Eksik parametreler' }, { status: 400 })
-    const result = await generateContent({ prompt: buildClickbaitPrompt(title, platform || 'youtube'), model: model as AIModel, systemPrompt: CLICKBAIT_SYSTEM_PROMPT, maxTokens: 2000 })
-    let data: Record<string, unknown> = {}
-    try { const m = result.content.match(/\{[\s\S]*\}/); if (m) data = JSON.parse(m[0]) } catch { data = { raw: result.content } }
-    return NextResponse.json({ data, tokensUsed: result.tokensUsed })
-  } catch (e) { return NextResponse.json({ error: e instanceof Error ? e.message : 'Sunucu hatasÄ±' }, { status: 500 }) }
-}
 
+    const result = await generateContent({
+      prompt: buildClickbaitPrompt(title, platform || 'youtube'),
+      model: model as AIModel,
+      systemPrompt: CLICKBAIT_SYSTEM_PROMPT,
+      maxTokens: 2000,
+    })
+
+    const parsed = extractJsonObject(result.content) || {}
+    const data = normalizeClickbait(parsed, title)
+
+    return NextResponse.json({ ...data, model: result.model, tokensUsed: result.tokensUsed })
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : 'Sunucu hatası' }, { status: 500 })
+  }
+}

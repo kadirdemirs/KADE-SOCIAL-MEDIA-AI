@@ -27,8 +27,8 @@ export async function POST(req: NextRequest) {
       videoDuration: number
     }
 
-    if (!transcript || transcript.length < 20) {
-      return NextResponse.json({ error: 'Transkripsiyon çok kısa veya boş.' }, { status: 400 })
+    if (!transcript || transcript.trim().length < 1) {
+      return NextResponse.json({ error: 'Transkripsiyon boş. Videoda konuşma var mı?' }, { status: 400 })
     }
 
     const groqApiKey = process.env.GROQ_API_KEY
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
 
     const clipsWithWords: ClipSuggestion[] = clips.map((clip) => ({
       ...clip,
-      words: (words ?? []).filter((w) => w.start >= clip.start - 0.1 && w.end <= clip.end + 0.5),
+      words: (words ?? []).filter((w) => w.start >= clip.start - 1.5 && w.end <= clip.end + 1.5),
     }))
 
     return NextResponse.json({ clips: clipsWithWords })

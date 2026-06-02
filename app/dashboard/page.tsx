@@ -95,7 +95,7 @@ export default function DashboardPage() {
               </span>
             </h1>
             <p className="text-zinc-400 text-base mb-8 max-w-lg leading-relaxed">
-              Claude, GPT-4o ve Gemini ile sosyal medya içerik üretimini hızlandır.
+              Groq açık modelleriyle sosyal medya içerik üretimini hızlandır.
             </p>
 
             <div className="flex flex-wrap items-center gap-2.5">

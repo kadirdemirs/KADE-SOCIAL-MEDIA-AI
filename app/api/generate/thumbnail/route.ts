@@ -1,6 +1,7 @@
 ﻿import { NextRequest, NextResponse } from 'next/server'
 import { generateContent } from '@/lib/ai/provider'
 import { THUMBNAIL_SYSTEM_PROMPT, buildThumbnailPrompt } from '@/lib/ai/prompts'
+import { extractJsonArray } from '@/lib/ai/json'
 import { rateLimit, getRateLimitKey } from '@/lib/rateLimit'
 import { ThumbnailRequest } from '@/types'
 
@@ -23,13 +24,7 @@ export async function POST(req: NextRequest) {
       maxTokens: 2000,
     })
 
-    let concepts: unknown[] = []
-    try {
-      const jsonMatch = result.content.match(/\[[\s\S]*\]/)
-      if (jsonMatch) concepts = JSON.parse(jsonMatch[0])
-    } catch {
-      concepts = []
-    }
+    const concepts = extractJsonArray<unknown[]>(result.content) || []
 
     return NextResponse.json({ concepts, model: result.model, tokensUsed: result.tokensUsed })
   } catch (error) {

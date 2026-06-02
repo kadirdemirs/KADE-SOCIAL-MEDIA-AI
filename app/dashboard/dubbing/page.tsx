@@ -34,12 +34,34 @@ function TTSTab() {
   const [audioUrl, setAudioUrl]   = useState<string | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [error, setError]         = useState('')
+  const [fallbackNotice, setFallbackNotice] = useState('')
+  const [usedBrowserSpeech, setUsedBrowserSpeech] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  const speakWithBrowser = () => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return false
+    window.speechSynthesis.cancel()
+    const utterance = new SpeechSynthesisUtterance(text)
+    utterance.lang = 'tr-TR'
+    utterance.rate = 1
+    utterance.pitch = voice === 'onyx' || voice === 'echo' ? 0.85 : 1.05
+    utterance.onend = () => setIsPlaying(false)
+    utterance.onerror = () => {
+      setIsPlaying(false)
+      setError('Tarayici seslendirme hatasi. Cihazin Speech API destegini kontrol et.')
+    }
+    window.speechSynthesis.speak(utterance)
+    setUsedBrowserSpeech(true)
+    setIsPlaying(true)
+    return true
+  }
 
   const handleGenerate = async () => {
     if (!text.trim()) return
     setLoading(true)
     setError('')
+    setFallbackNotice('')
+    setUsedBrowserSpeech(false)
     if (audioUrl) URL.revokeObjectURL(audioUrl)
     setAudioUrl(null)
     try {
@@ -55,13 +77,26 @@ function TTSTab() {
       const blob = await res.blob()
       setAudioUrl(URL.createObjectURL(blob))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ses üretim hatası')
+      if (speakWithBrowser()) {
+        setFallbackNotice('OpenAI TTS kullanilamadi; ucretsiz tarayici Speech API ile seslendiriliyor. Bu modda MP3 indirme yok.')
+      } else {
+        setError(err instanceof Error ? err.message : 'Ses uretim hatasi')
+      }
     } finally {
       setLoading(false)
     }
   }
 
   const togglePlay = () => {
+    if (usedBrowserSpeech) {
+      if (isPlaying) {
+        window.speechSynthesis.pause()
+      } else {
+        window.speechSynthesis.resume()
+      }
+      setIsPlaying(!isPlaying)
+      return
+    }
     if (!audioRef.current) return
     if (isPlaying) {
       audioRef.current.pause()
@@ -80,7 +115,7 @@ function TTSTab() {
   }
 
   const charCount = text.length
-  const charLimit = 4096
+  const CHUNK_SIZE = 4000
 
   return (
     <div className="flex gap-6 p-6">
@@ -89,16 +124,16 @@ function TTSTab() {
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <label className="text-zinc-400 text-xs font-medium">Metin</label>
-            <span className={cn('text-xs', charCount > charLimit ? 'text-red-400' : 'text-zinc-600')}>
-              {charCount}/{charLimit}
+            <span className="text-zinc-600 text-xs">
+              {charCount} karakter
+              {charCount > CHUNK_SIZE && <span className="text-amber-400 ml-1">· {Math.ceil(charCount / CHUNK_SIZE)} parça</span>}
             </span>
           </div>
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Seslendirilecek metni buraya yaz veya script'ten yapıştır..."
+            placeholder="Seslendirilecek metni buraya yaz veya script'ten yapıştır... (sınır yok)"
             rows={8}
-            maxLength={charLimit}
             className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-violet-500 resize-none"
           />
         </div>
@@ -149,7 +184,7 @@ function TTSTab() {
 
         <button
           onClick={handleGenerate}
-          disabled={loading || !text.trim() || charCount > charLimit}
+          disabled={loading || !text.trim()}
           className="w-full py-2.5 rounded-lg bg-violet-500 text-white text-sm font-medium hover:bg-violet-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
         >
           <Volume2 className="w-4 h-4" />
@@ -164,9 +199,14 @@ function TTSTab() {
             {error}
           </div>
         )}
+        {fallbackNotice && (
+          <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-4 text-amber-500 text-sm">
+            {fallbackNotice}
+          </div>
+        )}
         {loading && (
           <div className="rounded-xl border border-zinc-700/50 bg-zinc-800/50 p-6">
-            <LoadingState model="gpt4o" />
+            <LoadingState />
             <p className="text-zinc-500 text-xs mt-2 px-4">OpenAI TTS ile ses sentezleniyor...</p>
           </div>
         )}
@@ -222,7 +262,23 @@ function TTSTab() {
           </div>
         )}
 
-        {!loading && !audioUrl && !error && (
+        {usedBrowserSpeech && !loading && !audioUrl && !error && (
+          <div className="rounded-xl border border-zinc-700/50 bg-zinc-800/50 p-6 space-y-5">
+            <div>
+              <h3 className="text-zinc-200 font-medium text-sm">Tarayici Sesi Calisiyor</h3>
+              <p className="text-zinc-500 text-xs mt-0.5">Ucretsiz Speech API ile anlik oynatma. MP3 indirme icin OpenAI TTS gerekir.</p>
+            </div>
+            <button
+              onClick={togglePlay}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-500 text-white text-sm font-medium hover:bg-violet-600 transition-colors"
+            >
+              {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+              {isPlaying ? 'Duraklat' : 'Devam Et'}
+            </button>
+          </div>
+        )}
+
+        {!loading && !audioUrl && !error && !usedBrowserSpeech && (
           <div className="flex flex-col items-center justify-center h-64 gap-3 text-zinc-600">
             <Volume2 className="w-10 h-10 opacity-30" />
             <p className="text-sm">Metni gir, ses karakterini seç ve üret butonuna tıkla</p>

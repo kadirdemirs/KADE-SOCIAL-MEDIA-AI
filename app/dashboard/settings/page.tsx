@@ -20,13 +20,13 @@ declare global {
 const KEY_DEFS = [
   {
     id: 'GROQ_API_KEY',
-    label: 'Groq (Fallback AI)',
+    label: 'Groq (Açık Modeller)',
     placeholder: 'gsk_...',
     url: 'https://console.groq.com/keys',
     urlLabel: 'console.groq.com',
     color: 'text-lime-400',
     dot: 'bg-lime-400',
-    models: ['Llama 3.3 70B', 'Whisper'],
+    models: ['Llama 3.3 70B', 'GPT-OSS 120B', 'Llama 3.1 8B', 'Qwen3 32B', 'Whisper'],
   },
   {
     id: 'ANTHROPIC_API_KEY',

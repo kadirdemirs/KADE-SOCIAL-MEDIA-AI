@@ -1,4 +1,5 @@
 import { GenerateRequest, GenerateResult } from '@/types'
+import { getModelConfig } from '@/lib/ai/models'
 
 function hasEnv(name: string) {
   return Boolean(process.env[name]?.trim())
@@ -8,7 +9,8 @@ async function generateWithGroq(
   prompt: string,
   systemPrompt: string,
   maxTokens: number,
-  requestedModel: GenerateRequest['model']
+  requestedModel: GenerateRequest['model'],
+  groqModel?: string
 ): Promise<GenerateResult> {
   if (!hasEnv('GROQ_API_KEY')) {
     throw new Error(
@@ -18,8 +20,11 @@ async function generateWithGroq(
 
   const Groq = (await import('groq-sdk')).default
   const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
-  const response = await groq.chat.completions.create({
-    model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
+  const fallbackModel = 'llama-3.3-70b-versatile'
+  const targetModel = groqModel || process.env.GROQ_MODEL || fallbackModel
+
+  const createCompletion = (modelName: string) => groq.chat.completions.create({
+    model: modelName,
     max_tokens: maxTokens,
     messages: [
       { role: 'system', content: systemPrompt },
@@ -27,9 +32,19 @@ async function generateWithGroq(
     ],
   })
 
+  let response: Awaited<ReturnType<typeof createCompletion>>
+  let actualModel = requestedModel
+  try {
+    response = await createCompletion(targetModel)
+  } catch (error) {
+    if (targetModel === fallbackModel) throw error
+    response = await createCompletion(fallbackModel)
+    actualModel = 'groq-llama-70b'
+  }
+
   return {
     content: response.choices[0]?.message?.content || '',
-    model: requestedModel,
+    model: actualModel,
     tokensUsed: response.usage?.total_tokens,
   }
 }
@@ -37,11 +52,16 @@ async function generateWithGroq(
 export async function generateContent(req: GenerateRequest): Promise<GenerateResult> {
   const { prompt, model, systemPrompt, maxTokens = 1500 } = req
   const sysText = systemPrompt || 'Sen uzman bir sosyal medya icerik stratejistisisin. Turkce yanit ver.'
+  const modelConfig = getModelConfig(model)
 
   try {
+    if (modelConfig.provider === 'groq') {
+      return generateWithGroq(prompt, sysText, maxTokens, model, modelConfig.groqModel)
+    }
+
     if (model === 'claude') {
       if (!hasEnv('ANTHROPIC_API_KEY')) {
-        return generateWithGroq(prompt, sysText, maxTokens, model)
+        return generateWithGroq(prompt, sysText, maxTokens, 'groq-llama-70b', 'llama-3.3-70b-versatile')
       }
 
       const Anthropic = (await import('@anthropic-ai/sdk')).default
@@ -66,7 +86,7 @@ export async function generateContent(req: GenerateRequest): Promise<GenerateRes
 
     if (model === 'gpt4o') {
       if (!hasEnv('OPENAI_API_KEY')) {
-        return generateWithGroq(prompt, sysText, maxTokens, model)
+        return generateWithGroq(prompt, sysText, maxTokens, 'groq-gpt-oss-120b', 'openai/gpt-oss-120b')
       }
 
       const OpenAI = (await import('openai')).default
@@ -85,7 +105,7 @@ export async function generateContent(req: GenerateRequest): Promise<GenerateRes
 
     if (model === 'gemini') {
       if (!hasEnv('GEMINI_API_KEY')) {
-        return generateWithGroq(prompt, sysText, maxTokens, model)
+        return generateWithGroq(prompt, sysText, maxTokens, 'groq-qwen-32b', 'qwen/qwen3-32b')
       }
 
       const { GoogleGenerativeAI } = await import('@google/generative-ai')

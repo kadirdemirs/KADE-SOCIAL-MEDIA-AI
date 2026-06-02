@@ -1,6 +1,7 @@
 ﻿import { NextRequest, NextResponse } from 'next/server'
 import { generateContent } from '@/lib/ai/provider'
 import { SYSTEM_PROMPTS, buildTitlePrompt } from '@/lib/ai/prompts'
+import { extractJsonArray } from '@/lib/ai/json'
 import { rateLimit, getRateLimitKey } from '@/lib/rateLimit'
 import { TitleGenerateRequest } from '@/types'
 
@@ -23,12 +24,10 @@ export async function POST(req: NextRequest) {
       maxTokens: 2000,
     })
 
-    let titles: string[] = []
-    try {
-      titles = JSON.parse(result.content)
-    } catch {
-      titles = result.content.split('\n').filter((t) => t.trim().length > 0).slice(0, 5)
-    }
+    const parsed = extractJsonArray<string[]>(result.content)
+    const titles = parsed?.length
+      ? parsed
+      : result.content.split('\n').map((t) => t.replace(/^[-*\d.)\s]+/, '').trim()).filter(Boolean).slice(0, 5)
 
     return NextResponse.json({ titles, model: result.model, tokensUsed: result.tokensUsed }, {
       headers: { 'X-RateLimit-Remaining': String(remaining) },

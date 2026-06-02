@@ -1,4 +1,12 @@
-export type AIModel = 'claude' | 'gpt4o' | 'gemini'
+export type AIModel =
+  | 'groq-llama-70b'
+  | 'groq-gpt-oss-120b'
+  | 'groq-llama-8b'
+  | 'groq-gpt-oss-20b'
+  | 'groq-qwen-32b'
+  | 'claude'
+  | 'gpt4o'
+  | 'gemini'
 
 export type Platform = 'youtube' | 'instagram' | 'tiktok' | 'x' | 'linkedin' | 'pinterest'
 

@@ -15,7 +15,7 @@ interface ModelContextType {
 const ModelContext = createContext<ModelContextType | undefined>(undefined)
 
 export function ModelProvider({ children }: { children: ReactNode }) {
-  const [selectedModel, setSelectedModelRaw] = useState<AIModel>('claude')
+  const [selectedModel, setSelectedModelRaw] = useState<AIModel>('groq-llama-70b')
   const [autoReason, setAutoReason] = useState<string | null>(null)
   const [isAutoSelected, setIsAutoSelected] = useState(false)
 

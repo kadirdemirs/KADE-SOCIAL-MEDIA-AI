@@ -15,7 +15,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: 'KadeAI Studio',
-  description: 'Claude + GPT-4o + Gemini destekli sosyal medya içerik üretim platformu',
+  description: 'Groq açık modelleriyle sosyal medya içerik üretim platformu',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,

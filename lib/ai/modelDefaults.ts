@@ -5,44 +5,37 @@ export interface ToolModelConfig {
   reason: string
 }
 
-/**
- * Her araç için en iyi model ve gerekçesi.
- *
- * Claude  → uzun formlu yaratıcı yazı, ton & stil kontrolü, Türkçe kalitesi
- * GPT-4o  → yapılandırılmış JSON çıktısı, analitik skorlama, format tutarlılığı
- * Gemini  → geniş web bilgisi gerektiren içerikler, trend analizi
- */
 export const TOOL_MODEL_DEFAULTS: Record<string, ToolModelConfig> = {
   title: {
-    model: 'claude',
-    reason: 'Claude yaratıcı, merak uyandıran başlıklarda daha güçlü',
+    model: 'groq-llama-70b',
+    reason: 'Llama 70B yaratıcı başlık ve Türkçe ton için varsayılan',
   },
   description: {
-    model: 'claude',
-    reason: 'Claude uzun formlu yapılandırılmış metinlerde üstün',
+    model: 'groq-llama-70b',
+    reason: 'Llama 70B uzun açıklama ve akıcı metinlerde daha dengeli',
   },
   hook: {
-    model: 'claude',
-    reason: 'Claude duygusal tetikleyicili hook yazmada öne çıkıyor',
+    model: 'groq-llama-70b',
+    reason: 'Llama 70B hook ve yaratıcı varyasyonlarda güçlü',
   },
   script: {
-    model: 'claude',
-    reason: 'Claude uzun, tutarlı ve akıcı script üretiminde en iyi',
+    model: 'groq-llama-70b',
+    reason: 'Llama 70B uzun script tutarlılığı için seçildi',
   },
   hashtag: {
-    model: 'gpt4o',
-    reason: 'GPT-4o JSON kategorileme ve format tutarlılığında daha güvenilir',
+    model: 'groq-gpt-oss-20b',
+    reason: 'GPT-OSS 20B hızlı JSON ve kategori çıktıları için iyi',
   },
   'viral-score': {
-    model: 'gpt4o',
-    reason: 'GPT-4o analitik skorlama ve yapılandırılmış analizde daha tutarlı',
+    model: 'groq-gpt-oss-120b',
+    reason: 'GPT-OSS 120B analiz ve skorlama için seçildi',
   },
   repurpose: {
-    model: 'claude',
-    reason: 'Claude ton ve stil adaptasyonunda platforma göre en iyi uyumu sağlıyor',
+    model: 'groq-llama-70b',
+    reason: 'Llama 70B platform tonuna uyarlamada dengeli',
   },
   dubbing: {
-    model: 'claude',
-    reason: 'Claude kültürel nüans ve doğal çeviri kalitesinde öne çıkıyor',
+    model: 'groq-qwen-32b',
+    reason: 'Qwen 32B çeviri, planlama ve nüanslı düzenleme için seçildi',
   },
 }

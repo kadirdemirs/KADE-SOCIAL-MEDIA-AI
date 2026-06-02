@@ -1,6 +1,7 @@
 ﻿import { NextRequest, NextResponse } from 'next/server'
 import { generateContent } from '@/lib/ai/provider'
 import { SYSTEM_PROMPTS, buildHookPrompt } from '@/lib/ai/prompts'
+import { extractJsonArray } from '@/lib/ai/json'
 import { rateLimit, getRateLimitKey } from '@/lib/rateLimit'
 import { HookGenerateRequest } from '@/types'
 
@@ -23,12 +24,10 @@ export async function POST(req: NextRequest) {
       maxTokens: 2500,
     })
 
-    let hooks: { hook: string; tip: string; neden: string }[] = []
-    try {
-      hooks = JSON.parse(result.content)
-    } catch {
-      hooks = [{ hook: result.content, tip: 'genel', neden: 'AI tarafÄ±ndan Ã¼retildi' }]
-    }
+    const parsed = extractJsonArray<{ hook: string; tip: string; neden: string }[]>(result.content)
+    const hooks = parsed?.length
+      ? parsed
+      : [{ hook: result.content, tip: 'genel', neden: 'AI tarafindan uretildi' }]
 
     return NextResponse.json({ hooks, model: result.model, tokensUsed: result.tokensUsed })
   } catch (error) {

@@ -38,8 +38,9 @@ function encodeWAV(buffer: AudioBuffer): Blob {
 
 // ─── Audio extraction with Web Audio API (NO FFmpeg, NO download) ─────────────
 async function extractAudio(file: File, onMsg: (m: string) => void): Promise<File> {
+  type CaptureStreamVideo = HTMLVideoElement & { captureStream: () => MediaStream }
   // Yöntem 1: captureStream + MediaRecorder → WebM/Opus ~32kbps (en küçük boyut)
-  const supportsCapture = typeof (HTMLVideoElement.prototype as any).captureStream === 'function'
+  const supportsCapture = typeof (HTMLVideoElement.prototype as Partial<CaptureStreamVideo>).captureStream === 'function'
   if (supportsCapture) {
     try {
       onMsg('Ses sıkıştırılıyor (WebM/Opus 16x hız)...')
@@ -49,7 +50,7 @@ async function extractAudio(file: File, onMsg: (m: string) => void): Promise<Fil
         video.src = url; video.muted = false
         video.onloadedmetadata = () => {
           try {
-            const stream: MediaStream = (video as any).captureStream()
+            const stream = (video as CaptureStreamVideo).captureStream()
             const audioTracks = stream.getAudioTracks()
             if (!audioTracks.length) throw new Error('no audio')
             const mime = ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus']
