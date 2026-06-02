@@ -13,13 +13,13 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-  title: 'ContentAI Studio',
+  title: 'KadeAI Studio',
   description: 'Claude + GPT-4o + Gemini destekli sosyal medya içerik üretim platformu',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'ContentAI',
+    title: 'KadeAI',
   },
   icons: {
     icon: '/icons/icon-192.png',

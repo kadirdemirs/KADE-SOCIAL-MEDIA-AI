@@ -127,7 +127,7 @@ export default function Sidebar() {
         <div className="flex items-center justify-between px-5 py-5 border-b border-zinc-800">
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-violet-400" />
-            <span className="text-zinc-100 font-semibold text-lg tracking-tight">ContentAI</span>
+            <span className="text-zinc-100 font-semibold text-lg tracking-tight">KadeAI</span>
           </div>
           <button onClick={close} className="lg:hidden text-zinc-500 hover:text-zinc-300 transition-colors">
             <X className="w-4 h-4" />
@@ -168,7 +168,7 @@ export default function Sidebar() {
         </nav>
 
         <div className="px-4 py-4 border-t border-zinc-800">
-          <p className="text-zinc-600 text-xs text-center">ContentAI Studio v3.0 · 56 Araç</p>
+          <p className="text-zinc-600 text-xs text-center">KadeAI Studio v3.0 · 56 Araç</p>
         </div>
       </aside>
     </>

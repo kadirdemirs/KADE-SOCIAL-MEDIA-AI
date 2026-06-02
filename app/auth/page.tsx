@@ -81,7 +81,7 @@ export default function AuthPage() {
         <div className="text-center">
           <div className="flex items-center justify-center gap-2 mb-2">
             <Sparkles className="w-6 h-6 text-violet-400" />
-            <span className="text-zinc-100 font-bold text-xl">ContentAI Studio</span>
+            <span className="text-zinc-100 font-bold text-xl">KadeAI Studio</span>
           </div>
           <p className="text-zinc-500 text-sm">AI destekli içerik üretim platformu</p>
         </div>
