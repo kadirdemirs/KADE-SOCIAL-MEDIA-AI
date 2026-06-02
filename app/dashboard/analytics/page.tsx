@@ -42,10 +42,6 @@ export default function AnalyticsPage() {
     const prompt = `Platform: ${platform}\nNiche: ${niche}\n\nMetrikler:\n${metricsText}\n\nBu verileri analiz et ve büyüme stratejisi öner.`
 
     try {
-      const { generateContent } = await import('@/lib/ai/provider').catch(() => ({ generateContent: null }))
-      if (!generateContent) throw new Error('Provider yüklenemedi')
-
-      // Inline analiz — ayrı API route'a gerek yok
       const res = await fetch('/api/generate/viral-score', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
