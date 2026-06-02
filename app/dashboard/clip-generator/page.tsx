@@ -312,6 +312,11 @@ export default function ClipGeneratorPage() {
                 <CheckCircle className="w-3 h-3" /> FFmpeg WASM hazır
               </div>
             )}
+            {stepMsg && (
+              <div className="rounded-lg bg-zinc-900 border border-zinc-800 px-3 py-2 text-zinc-400 text-xs">
+                {stepMsg}
+              </div>
+            )}
 
             {/* Progress steps */}
             {step !== 'idle' && (

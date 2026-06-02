@@ -41,13 +41,14 @@ export function copyToClipboard(text: string): Promise<void> {
 }
 
 export function checkEnvVars(): void {
-  const required = [
-    'ANTHROPIC_API_KEY',
-    'OPENAI_API_KEY',
-    'GEMINI_API_KEY',
-  ]
-  const missing = required.filter((key) => !process.env[key])
-  if (missing.length > 0) {
-    console.warn(`[ContentAI] Eksik API anahtarları: ${missing.join(', ')}. Lütfen .env.local dosyasını kontrol et.`)
+  const hasTextProvider = Boolean(
+    process.env.GROQ_API_KEY ||
+      process.env.ANTHROPIC_API_KEY ||
+      process.env.OPENAI_API_KEY ||
+      process.env.GEMINI_API_KEY
+  )
+
+  if (!hasTextProvider) {
+    console.warn('[ContentAI] Eksik AI API anahtari. GROQ_API_KEY veya model saglayici anahtarlarindan birini ekle.')
   }
 }

@@ -39,8 +39,6 @@ export default function AnalyticsPage() {
       .map(m => `${m.label}: ${values[m.key]}${m.suffix}`)
       .join('\n')
 
-    const prompt = `Platform: ${platform}\nNiche: ${niche}\n\nMetrikler:\n${metricsText}\n\nBu verileri analiz et ve büyüme stratejisi öner.`
-
     try {
       const res = await fetch('/api/generate/viral-score', {
         method: 'POST',

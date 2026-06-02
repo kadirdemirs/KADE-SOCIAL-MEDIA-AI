@@ -27,7 +27,6 @@ export default function AiThumbnailPage() {
   const [extraPrompt, setExtraPrompt] = useState('')
   const [loading, setLoading] = useState(false)
   const [imageUrl, setImageUrl] = useState<string | null>(null)
-  const [seed, setSeed] = useState(Math.floor(Math.random() * 9999))
 
   const selectedStyle = styles.find(s => s.id === style)
   const selectedRatio = ratios.find(r => r.id === ratio)
@@ -37,7 +36,6 @@ export default function AiThumbnailPage() {
     setLoading(true)
     setImageUrl(null)
     const newSeed = Math.floor(Math.random() * 99999)
-    setSeed(newSeed)
 
     const fullPrompt = [
       `youtube thumbnail, ${topic}`,
@@ -127,6 +125,7 @@ export default function AiThumbnailPage() {
           <div className="flex-1 min-w-0 flex flex-col items-center justify-start gap-4">
             {imageUrl && (
               <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={imageUrl} alt="Generated thumbnail" className="rounded-xl border border-zinc-700/50 max-w-full shadow-xl" />
                 <div className="flex gap-2">
                   <button onClick={generate} disabled={loading}

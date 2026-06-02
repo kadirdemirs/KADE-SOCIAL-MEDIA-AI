@@ -19,6 +19,16 @@ declare global {
 
 const KEY_DEFS = [
   {
+    id: 'GROQ_API_KEY',
+    label: 'Groq (Fallback AI)',
+    placeholder: 'gsk_...',
+    url: 'https://console.groq.com/keys',
+    urlLabel: 'console.groq.com',
+    color: 'text-lime-400',
+    dot: 'bg-lime-400',
+    models: ['Llama 3.3 70B', 'Whisper'],
+  },
+  {
     id: 'ANTHROPIC_API_KEY',
     label: 'Anthropic (Claude)',
     placeholder: 'sk-ant-...',
@@ -76,12 +86,25 @@ export default function SettingsPage() {
   const [saved, setSaved]           = useState(false)
   const [configPath, setConfigPath] = useState('')
   const [showKeys, setShowKeys]     = useState<Record<string, boolean>>({})
+  const [serverEnvStatus, setServerEnvStatus] = useState<Record<string, boolean>>({
+    GROQ_API_KEY: false,
+    ANTHROPIC_API_KEY: false,
+    OPENAI_API_KEY: false,
+    GEMINI_API_KEY: false,
+    NEXT_PUBLIC_SUPABASE_URL: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  })
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.electronAPI?.isElectron) {
       setIsElectron(true)
       window.electronAPI.getConfig().then((c) => setConfig(c || {}))
       window.electronAPI.getConfigPath().then(setConfigPath)
+    } else {
+      fetch('/api/env-status')
+        .then((res) => res.json())
+        .then((status) => setServerEnvStatus(status))
+        .catch(() => {})
     }
   }, [])
 
@@ -94,15 +117,6 @@ export default function SettingsPage() {
 
   const toggleShow = (id: string) =>
     setShowKeys((prev) => ({ ...prev, [id]: !prev[id] }))
-
-  // Server-side env status (web / Vercel)
-  const serverEnvStatus: Record<string, boolean> = {
-    ANTHROPIC_API_KEY:            !!process.env.ANTHROPIC_API_KEY,
-    OPENAI_API_KEY:               !!process.env.OPENAI_API_KEY,
-    GEMINI_API_KEY:               !!process.env.GEMINI_API_KEY,
-    NEXT_PUBLIC_SUPABASE_URL:     !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  }
 
   const configuredCount = KEY_DEFS.filter((k) =>
     isElectron ? !!config[k.id] : serverEnvStatus[k.id]

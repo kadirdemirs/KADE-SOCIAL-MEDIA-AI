@@ -1,11 +1,49 @@
 import { GenerateRequest, GenerateResult } from '@/types'
 
+function hasEnv(name: string) {
+  return Boolean(process.env[name]?.trim())
+}
+
+async function generateWithGroq(
+  prompt: string,
+  systemPrompt: string,
+  maxTokens: number,
+  requestedModel: GenerateRequest['model']
+): Promise<GenerateResult> {
+  if (!hasEnv('GROQ_API_KEY')) {
+    throw new Error(
+      'AI API anahtari bulunamadi. Vercel env icine GROQ_API_KEY veya secilen modelin API anahtarini ekle.'
+    )
+  }
+
+  const Groq = (await import('groq-sdk')).default
+  const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+  const response = await groq.chat.completions.create({
+    model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
+    max_tokens: maxTokens,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: prompt },
+    ],
+  })
+
+  return {
+    content: response.choices[0]?.message?.content || '',
+    model: requestedModel,
+    tokensUsed: response.usage?.total_tokens,
+  }
+}
+
 export async function generateContent(req: GenerateRequest): Promise<GenerateResult> {
   const { prompt, model, systemPrompt, maxTokens = 1500 } = req
-  const sysText = systemPrompt || 'Sen uzman bir sosyal medya içerik stratejistisisin. Türkçe yanıt ver.'
+  const sysText = systemPrompt || 'Sen uzman bir sosyal medya icerik stratejistisisin. Turkce yanit ver.'
 
   try {
     if (model === 'claude') {
+      if (!hasEnv('ANTHROPIC_API_KEY')) {
+        return generateWithGroq(prompt, sysText, maxTokens, model)
+      }
+
       const Anthropic = (await import('@anthropic-ai/sdk')).default
       const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
       const response = await anthropic.messages.create({
@@ -27,6 +65,10 @@ export async function generateContent(req: GenerateRequest): Promise<GenerateRes
     }
 
     if (model === 'gpt4o') {
+      if (!hasEnv('OPENAI_API_KEY')) {
+        return generateWithGroq(prompt, sysText, maxTokens, model)
+      }
+
       const OpenAI = (await import('openai')).default
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
       const response = await openai.chat.completions.create({
@@ -42,6 +84,10 @@ export async function generateContent(req: GenerateRequest): Promise<GenerateRes
     }
 
     if (model === 'gemini') {
+      if (!hasEnv('GEMINI_API_KEY')) {
+        return generateWithGroq(prompt, sysText, maxTokens, model)
+      }
+
       const { GoogleGenerativeAI } = await import('@google/generative-ai')
       const geminiAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
       const geminiModel = geminiAI.getGenerativeModel({ model: 'gemini-1.5-pro' })
@@ -54,6 +100,6 @@ export async function generateContent(req: GenerateRequest): Promise<GenerateRes
     throw new Error(`Bilinmeyen model: ${model}`)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Bilinmeyen hata'
-    throw new Error(`${model} API hatası: ${message}`)
+    throw new Error(`${model} API hatasi: ${message}`)
   }
 }

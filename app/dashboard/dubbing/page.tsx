@@ -6,7 +6,7 @@ import TopBar from '@/components/layout/TopBar'
 import ModelSelector from '@/components/layout/ModelSelector'
 import CopyButton from '@/components/ui/CopyButton'
 import LoadingState from '@/components/ui/LoadingState'
-import { TTSVoice, TTSModel, DubbingLanguage, AIModel } from '@/types'
+import { TTSVoice, TTSModel, DubbingLanguage } from '@/types'
 import { cn } from '@/lib/utils'
 import { Play, Pause, Download, Volume2, Languages } from 'lucide-react'
 

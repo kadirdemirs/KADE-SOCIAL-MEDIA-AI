@@ -5,7 +5,6 @@ import { useModel } from '@/lib/context/ModelContext'
 import TopBar from '@/components/layout/TopBar'
 import ModelSelector from '@/components/layout/ModelSelector'
 import LoadingState from '@/components/ui/LoadingState'
-import { cn } from '@/lib/utils'
 
 interface Scene {
   numara: number

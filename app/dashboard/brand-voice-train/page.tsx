@@ -5,7 +5,7 @@ import { useModel } from '@/lib/context/ModelContext'
 import TopBar from '@/components/layout/TopBar'
 import ModelSelector from '@/components/layout/ModelSelector'
 import LoadingState from '@/components/ui/LoadingState'
-import { cn, copyToClipboard } from '@/lib/utils'
+import { copyToClipboard } from '@/lib/utils'
 import { Copy, Check } from 'lucide-react'
 
 interface BrandVoiceTrainResult {
