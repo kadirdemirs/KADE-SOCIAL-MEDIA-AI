@@ -4,43 +4,64 @@ export const dynamic = 'force-dynamic'
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Sparkles } from 'lucide-react'
+import { Sparkles, User, Lock, Mail } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type Mode = 'login' | 'signup'
 
-export default function AuthPage() {
-  const [mode, setMode]       = useState<Mode>('login')
-  const [email, setEmail]     = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError]     = useState('')
-  const [success, setSuccess] = useState('')
+// Kullanıcı adını Supabase email formatına çevir
+function toEmail(input: string): string {
+  return input.includes('@') ? input : `${input.toLowerCase().replace(/\s+/g, '_')}@contentai.app`
+}
 
-  const isSupabaseConfigured = !!(
-    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  )
-  const supabase = isSupabaseConfigured ? createClient() : null
+export default function AuthPage() {
+  const [mode, setMode]         = useState<Mode>('login')
+  const [identifier, setIdentifier] = useState('') // username veya email
+  const [nickname, setNickname] = useState('')      // sadece kayıtta
+  const [password, setPassword] = useState('')
+  const [loading, setLoading]   = useState(false)
+  const [error, setError]       = useState('')
+  const [success, setSuccess]   = useState('')
+
+  const isConfigured = !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+  const supabase = isConfigured ? createClient() : null
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
-    setError('')
-    setSuccess('')
+    setLoading(true); setError(''); setSuccess('')
 
-    if (!supabase) { setError('Supabase yapılandırılmamış. .env.local dosyasını kontrol et.'); setLoading(false); return }
+    if (!supabase) {
+      setError('Supabase bağlantısı yok. Vercel env var\'larını kontrol et.')
+      setLoading(false)
+      return
+    }
+
+    const email = toEmail(identifier)
+
     try {
       if (mode === 'login') {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
         window.location.href = '/dashboard'
       } else {
-        const { error } = await supabase.auth.signUp({ email, password })
+        const displayName = nickname || identifier
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { data: { display_name: displayName, username: identifier.includes('@') ? identifier.split('@')[0] : identifier } },
+        })
         if (error) throw error
-        setSuccess('Kayıt başarılı! E-posta adresini doğrulamayı unutma.')
+        // Auto-login after signup
+        const { error: loginErr } = await supabase.auth.signInWithPassword({ email, password })
+        if (loginErr) {
+          setSuccess('Kayıt başarılı! Giriş yapabilirsin.')
+        } else {
+          window.location.href = '/dashboard'
+        }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Hata oluştu')
+      const msg = err instanceof Error ? err.message : 'Hata oluştu'
+      setError(msg === 'Invalid login credentials' ? 'Kullanıcı adı veya şifre hatalı' : msg)
     } finally {
       setLoading(false)
     }
@@ -66,54 +87,63 @@ export default function AuthPage() {
         </div>
 
         <div className="rounded-xl border border-zinc-700/50 bg-zinc-900 p-6 space-y-5">
-          {/* Mode toggle */}
           <div className="flex rounded-lg bg-zinc-800 p-1">
             {(['login', 'signup'] as Mode[]).map((m) => (
-              <button
-                key={m}
-                onClick={() => { setMode(m); setError(''); setSuccess('') }}
+              <button key={m} onClick={() => { setMode(m); setError(''); setSuccess('') }}
                 className={cn('flex-1 py-1.5 rounded-md text-sm font-medium transition-colors',
-                  mode === m ? 'bg-violet-500 text-white' : 'text-zinc-400 hover:text-zinc-200')}
-              >
+                  mode === m ? 'bg-violet-500 text-white' : 'text-zinc-400 hover:text-zinc-200')}>
                 {m === 'login' ? 'Giriş Yap' : 'Kayıt Ol'}
               </button>
             ))}
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Kayıtta görünen ad */}
+            {mode === 'signup' && (
+              <div>
+                <label className="block text-zinc-400 text-xs font-medium mb-1.5">Görünen Ad</label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                  <input value={nickname} onChange={(e) => setNickname(e.target.value)}
+                    placeholder="Kade, Studio Kade..." autoComplete="name"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg pl-9 pr-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-violet-500" />
+                </div>
+              </div>
+            )}
+
+            {/* Kullanıcı adı veya email */}
             <div>
-              <label className="block text-zinc-400 text-xs font-medium mb-1.5">E-posta</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                placeholder="ornek@email.com"
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-violet-500"
-              />
+              <label className="block text-zinc-400 text-xs font-medium mb-1.5">
+                Kullanıcı Adı <span className="text-zinc-600">veya E-posta</span>
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                <input value={identifier} onChange={(e) => setIdentifier(e.target.value)}
+                  required placeholder="kadir veya kadir@email.com" autoComplete="username"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg pl-9 pr-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-violet-500" />
+              </div>
+              {identifier && !identifier.includes('@') && (
+                <p className="text-zinc-600 text-[10px] mt-1">→ {identifier}@contentai.app olarak kaydedilir</p>
+              )}
             </div>
+
+            {/* Şifre */}
             <div>
               <label className="block text-zinc-400 text-xs font-medium mb-1.5">Şifre</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                placeholder="En az 6 karakter"
-                minLength={6}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-violet-500"
-              />
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+                  required placeholder="En az 6 karakter" minLength={6} autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg pl-9 pr-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-violet-500" />
+              </div>
             </div>
 
-            {error && <p className="text-red-400 text-xs bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
+            {error   && <p className="text-red-400 text-xs bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
             {success && <p className="text-emerald-400 text-xs bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">{success}</p>}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2.5 rounded-lg bg-violet-500 text-white text-sm font-medium hover:bg-violet-600 disabled:opacity-50 transition-colors"
-            >
-              {loading ? 'Yükleniyor...' : mode === 'login' ? 'Giriş Yap' : 'Kayıt Ol'}
+            <button type="submit" disabled={loading}
+              className="w-full py-2.5 rounded-lg bg-violet-500 text-white text-sm font-medium hover:bg-violet-600 disabled:opacity-50 transition-colors">
+              {loading ? 'Yükleniyor...' : mode === 'login' ? 'Giriş Yap' : 'Hesap Oluştur'}
             </button>
           </form>
 
@@ -123,10 +153,8 @@ export default function AuthPage() {
             <div className="flex-1 h-px bg-zinc-700" />
           </div>
 
-          <button
-            onClick={handleGoogleLogin}
-            className="w-full py-2.5 rounded-lg border border-zinc-700 bg-zinc-800 text-zinc-300 text-sm font-medium hover:bg-zinc-700 transition-colors flex items-center justify-center gap-2"
-          >
+          <button onClick={handleGoogleLogin}
+            className="w-full py-2.5 rounded-lg border border-zinc-700 bg-zinc-800 text-zinc-300 text-sm font-medium hover:bg-zinc-700 transition-colors flex items-center justify-center gap-2">
             <svg className="w-4 h-4" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
               <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -136,10 +164,6 @@ export default function AuthPage() {
             Google ile Giriş Yap
           </button>
         </div>
-
-        <p className="text-zinc-600 text-xs text-center">
-          API anahtarları olmadan da giriş yapabilirsin, ancak AI özellikleri .env.local gerektirir.
-        </p>
       </div>
     </div>
   )
