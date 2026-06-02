@@ -23,7 +23,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <AutoModelApplier />
         <div className="flex h-screen bg-zinc-950">
           <Sidebar />
-          <main className="flex-1 lg:ml-60 flex flex-col overflow-hidden min-w-0">
+          <main className="flex-1 lg:ml-64 flex flex-col overflow-hidden min-w-0">
             {children}
           </main>
         </div>

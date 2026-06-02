@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { generateContent } from '@/lib/ai/provider'
 import { PODCAST_SYSTEM_PROMPT, buildPodcastPrompt } from '@/lib/ai/prompts'
 import { AIModel } from '@/types'
@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
       prompt: buildPodcastPrompt(topic, duration || '30 dakika', format || 'solo', hostName || ''),
       model: model as AIModel,
       systemPrompt: PODCAST_SYSTEM_PROMPT,
-      maxTokens: 4000,
+      maxTokens: 6000,
     })
 
     let podcast: Record<string, unknown> = {}
@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ podcast, tokensUsed: result.tokensUsed })
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'Sunucu hatası' }, { status: 500 })
+    return NextResponse.json({ error: e instanceof Error ? e.message : 'Sunucu hatasÄ±' }, { status: 500 })
   }
 }
+

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import Groq from 'groq-sdk'
 import { CLIP_EXTRACTION_SYSTEM_PROMPT, buildClipExtractionPrompt } from '@/lib/ai/prompts'
 
+export const maxDuration = 120
+
 export interface ClipSuggestion {
   id: number
   start: number

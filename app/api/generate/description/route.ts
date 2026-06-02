@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { generateContent } from '@/lib/ai/provider'
 import { SYSTEM_PROMPTS, buildDescriptionPrompt } from '@/lib/ai/prompts'
 import { rateLimit, getRateLimitKey } from '@/lib/rateLimit'
@@ -6,7 +6,7 @@ import { DescriptionGenerateRequest } from '@/types'
 
 export async function POST(req: NextRequest) {
   const { allowed } = rateLimit(getRateLimitKey(req))
-  if (!allowed) return NextResponse.json({ error: 'Çok fazla istek. 1 dakika bekle.' }, { status: 429 })
+  if (!allowed) return NextResponse.json({ error: 'Ã‡ok fazla istek. 1 dakika bekle.' }, { status: 429 })
 
   try {
     const body: DescriptionGenerateRequest = await req.json()
@@ -20,12 +20,13 @@ export async function POST(req: NextRequest) {
       prompt: buildDescriptionPrompt(title, summary, platform, targetAudience, includeCTA, includeHashtags),
       model,
       systemPrompt: SYSTEM_PROMPTS.descriptionWriter,
-      maxTokens: 1200,
+      maxTokens: 2500,
     })
 
     return NextResponse.json({ description: result.content, model: result.model, tokensUsed: result.tokensUsed })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Sunucu hatası'
+    const message = error instanceof Error ? error.message : 'Sunucu hatasÄ±'
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
+

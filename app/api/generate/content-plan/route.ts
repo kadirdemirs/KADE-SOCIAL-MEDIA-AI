@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { generateContent } from '@/lib/ai/provider'
 import { CONTENT_PLAN_SYSTEM_PROMPT, buildContentPlanPrompt } from '@/lib/ai/prompts'
 import { AIModel } from '@/types'
@@ -9,10 +9,10 @@ export async function POST(req: NextRequest) {
     if (!niche || !platform || !model) return NextResponse.json({ error: 'Eksik parametreler' }, { status: 400 })
 
     const result = await generateContent({
-      prompt: buildContentPlanPrompt(niche, platform, goal || 'takipçi büyümesi', frequency || 'haftada 3'),
+      prompt: buildContentPlanPrompt(niche, platform, goal || 'takipÃ§i bÃ¼yÃ¼mesi', frequency || 'haftada 3'),
       model: model as AIModel,
       systemPrompt: CONTENT_PLAN_SYSTEM_PROMPT,
-      maxTokens: 5000,
+      maxTokens: 8000,
     })
 
     let plan: Record<string, unknown> = {}
@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ plan, tokensUsed: result.tokensUsed })
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'Sunucu hatası' }, { status: 500 })
+    return NextResponse.json({ error: e instanceof Error ? e.message : 'Sunucu hatasÄ±' }, { status: 500 })
   }
 }
+

@@ -15,20 +15,23 @@ export default function TopBar({ title, description }: TopBarProps) {
   const { toggle } = useSidebar()
 
   return (
-    <div className="flex flex-col gap-3 px-4 py-4 border-b border-zinc-800 bg-zinc-950 flex-shrink-0 sm:flex-row sm:items-center sm:justify-between lg:px-6">
+    <div className="flex items-center justify-between px-5 py-3.5 border-b border-orange-100 bg-white flex-shrink-0 lg:px-7 min-h-[58px] shadow-sm shadow-orange-50">
       <div className="flex items-center gap-3 min-w-0">
         <button
           onClick={toggle}
-          className="lg:hidden text-zinc-400 hover:text-zinc-100 transition-colors p-1"
+          className="lg:hidden text-zinc-500 hover:text-zinc-200 transition-colors p-1.5 rounded-lg hover:bg-orange-50"
+          aria-label="Menüyü aç"
         >
           <Menu className="w-5 h-5" />
         </button>
         <div className="min-w-0">
-          <h1 className="text-zinc-100 font-semibold text-base lg:text-lg">{title}</h1>
-          {description && <p className="text-zinc-500 text-xs mt-0.5 hidden sm:block">{description}</p>}
+          <h1 className="text-zinc-100 font-semibold text-sm leading-tight">{title}</h1>
+          {description && (
+            <p className="text-zinc-500 text-xs mt-0.5 hidden sm:block truncate">{description}</p>
+          )}
         </div>
       </div>
-      <div className="w-full overflow-x-auto sm:w-auto">
+      <div className="flex-shrink-0 ml-4">
         <ModelSelector value={selectedModel} onChange={setSelectedModel} />
       </div>
     </div>

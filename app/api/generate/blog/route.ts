@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { generateContent } from '@/lib/ai/provider'
 import { BLOG_SYSTEM_PROMPT, buildBlogPrompt } from '@/lib/ai/prompts'
 import { AIModel } from '@/types'
@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
       prompt: buildBlogPrompt(content, title || '', targetKeyword || ''),
       model: model as AIModel,
       systemPrompt: BLOG_SYSTEM_PROMPT,
-      maxTokens: 4000,
+      maxTokens: 8000,
     })
 
     let blog: Record<string, unknown> = {}
@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ blog, tokensUsed: result.tokensUsed })
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'Sunucu hatası' }, { status: 500 })
+    return NextResponse.json({ error: e instanceof Error ? e.message : 'Sunucu hatasÄ±' }, { status: 500 })
   }
 }
+

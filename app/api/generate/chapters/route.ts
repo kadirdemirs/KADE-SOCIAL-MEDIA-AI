@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { generateContent } from '@/lib/ai/provider'
 import { CHAPTERS_SYSTEM_PROMPT, buildChaptersPrompt } from '@/lib/ai/prompts'
 import { AIModel } from '@/types'
@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
       prompt: buildChaptersPrompt(transcript, videoDuration || 'bilinmiyor'),
       model: model as AIModel,
       systemPrompt: CHAPTERS_SYSTEM_PROMPT,
-      maxTokens: 2000,
+      maxTokens: 3000,
     })
 
     let chapters: Record<string, unknown> = {}
@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ chapters, tokensUsed: result.tokensUsed })
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'Sunucu hatası' }, { status: 500 })
+    return NextResponse.json({ error: e instanceof Error ? e.message : 'Sunucu hatasÄ±' }, { status: 500 })
   }
 }
+

@@ -913,3 +913,28 @@ Thumbnail: ${thumbnailDesc}
 
 JSON: {"genel_skor":0-100,"tahminler":{"ctr_tahmini":"X-Y%","ilk_48_saat":"düşük|orta|yüksek görüntüleme","viral_potansiyel":0-100,"uzun_vadeli":"evergreen mi?"},"guclu_yonler":["güçlü yön1"],"zayif_yonler":["zayıf yön1"],"optimizasyon_onerileri":["öneri1"],"a_b_alternatifleri":{"baslik_b":"","thumbnail_b":""},"ideal_yayın_zamani":"","benzer_viral_icerikler":"bu tarzda viral olan içerik örnekleri"}`
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// İÇERİK DÖNÜŞTÜRME (REPURPOSE)
+// ═══════════════════════════════════════════════════════════════════════════
+export const REPURPOSE_SYSTEM_PROMPT = `Sen çok platformlu içerik stratejistisisin. Bir içeriği farklı platformların tonuna, formatına ve kullanıcı davranışına uygun şekilde dönüştürüyorsun. Her platform için özgün, native içerik üretiyorsun — sadece kopyalayıp yapıştırmıyorsun.`
+
+export function buildRepurposePrompt(content: string, source: string, target: string): string {
+  const guidelines: Record<string, string> = {
+    youtube:    'YouTube: Uzun açıklama, bölümlere ayır, SEO odaklı, CTA ekle, timestamps kullan',
+    instagram:  'Instagram: Görsel odaklı caption, 5-7 satır, line break, emoji, 5-10 hashtag, CTA',
+    tiktok:     'TikTok: Kısa ve çarpıcı (150 karakter max), trend ses/hook öner, 3-5 hashtag, genç dili',
+    x:          'X/Twitter: 280 karakter thread veya tek tweet, soru ile bağla, RT bait, minimal hashtag',
+    linkedin:   'LinkedIn: Profesyonel ton, story-based format, satır araları, veri/istatistik, no hashtag spam',
+    pinterest:  'Pinterest: Keyword-rich açıklama, SEO odaklı, fayda vurgula, long-tail keywords',
+  }
+  return `Kaynak platform: ${source}
+Hedef platform: ${target}
+Yönergeler: ${guidelines[target] || 'Platform normlarına uygun içerik'}
+
+Orijinal içerik:
+${content}
+
+Bu içeriği ${target} için tamamen yeniden yaz. Platform kültürüne uygun, native içerik olsun. Emoji ve formatlamayı platforma göre ayarla.`
+}
+

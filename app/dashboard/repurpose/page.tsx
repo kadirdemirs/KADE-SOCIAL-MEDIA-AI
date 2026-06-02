@@ -39,22 +39,19 @@ export default function RepurposePage() {
     setResults([])
     try {
       const promises = targetPlatforms.map(async (target) => {
-        const res = await fetch('/api/generate/description', {
+        const res = await fetch('/api/generate/repurpose', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            title: `İçerik Dönüşümü: ${sourcePlatform} → ${target}`,
-            summary: `Orijinal içerik (${sourcePlatform}): ${originalContent}`,
-            platform: target,
-            targetAudience: `${getPlatformLabel(target)} kullanıcıları`,
+            content: originalContent,
+            sourcePlatform,
+            targetPlatform: target,
             model: selectedModel,
-            includeCTA: true,
-            includeHashtags: true,
           }),
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error)
-        return { platform: target, content: data.description } as RepurposeResult
+        return { platform: target, content: data.content } as RepurposeResult
       })
       const settled = await Promise.allSettled(promises)
       const success = settled

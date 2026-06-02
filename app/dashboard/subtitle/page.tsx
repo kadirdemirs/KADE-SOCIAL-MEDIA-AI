@@ -1,66 +1,65 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
-import { FFmpeg } from '@ffmpeg/ffmpeg'
-import { fetchFile, toBlobURL } from '@ffmpeg/util'
+import { useState } from 'react'
 import TopBar from '@/components/layout/TopBar'
 import { cn, copyToClipboard } from '@/lib/utils'
-import { Upload, Download, Loader2, CheckCircle, Copy, Check } from 'lucide-react'
+import { Upload, Download, Loader2, Copy, Check } from 'lucide-react'
 
-interface SubtitleResult {
-  srt: string
-  transcript: string
-  wordCount: number
+interface SubtitleResult { srt: string; transcript: string; wordCount: number }
+
+// Web Audio API ile ses çıkarma (FFmpeg yok, indirme yok)
+function encodeWAV(buffer: AudioBuffer): Blob {
+  const ns = buffer.length; const sr = buffer.sampleRate
+  const data = new Int16Array(ns)
+  const ch = buffer.getChannelData(0)
+  for (let i = 0; i < ns; i++) { const s = Math.max(-1, Math.min(1, ch[i])); data[i] = s < 0 ? s * 0x8000 : s * 0x7fff }
+  const hdr = new ArrayBuffer(44); const v = new DataView(hdr)
+  const ws = (o: number, s: string) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)) }
+  ws(0, 'RIFF'); v.setUint32(4, 36 + data.byteLength, true); ws(8, 'WAVE'); ws(12, 'fmt ')
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true)
+  v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true)
+  ws(36, 'data'); v.setUint32(40, data.byteLength, true)
+  const out = new Uint8Array(44 + data.byteLength); out.set(new Uint8Array(hdr)); out.set(new Uint8Array(data.buffer), 44)
+  return new Blob([out], { type: 'audio/wav' })
+}
+
+async function extractAudio(file: File, onMsg: (m: string) => void): Promise<File> {
+  // Ses dosyası ise direkt gönder (dönüştürme yok)
+  if (file.type.startsWith('audio/') && (file.type.includes('mpeg') || file.type.includes('mp3') || file.type.includes('wav') || file.type.includes('ogg'))) {
+    onMsg('Ses dosyası hazırlanıyor...')
+    return file
+  }
+  onMsg('Ses kanalı ayrıştırılıyor...')
+  const ab = await file.arrayBuffer()
+  const tmpCtx = new AudioContext()
+  let original: AudioBuffer
+  try { original = await tmpCtx.decodeAudioData(ab) }
+  catch { throw new Error('Dosya formatı desteklenmiyor. MP4, MOV, MP3 veya WAV kullan.') }
+  finally { await tmpCtx.close() }
+  onMsg('16 kHz\'e dönüştürülüyor...')
+  const SR = 16000
+  const offline = new OfflineAudioContext(1, Math.ceil(original.duration * SR), SR)
+  const src = offline.createBufferSource(); src.buffer = original; src.connect(offline.destination); src.start(0)
+  const resampled = await offline.startRendering()
+  onMsg('WAV oluşturuluyor...')
+  return new File([encodeWAV(resampled)], 'audio.wav', { type: 'audio/wav' })
 }
 
 export default function SubtitlePage() {
-  const [file, setFile] = useState<File | null>(null)
+  const [file, setFile]         = useState<File | null>(null)
   const [language, setLanguage] = useState('auto')
   const [chunkSize, setChunkSize] = useState(5)
-  const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<SubtitleResult | null>(null)
-  const [error, setError] = useState('')
-  const [ffmpegReady, setFfmpegReady] = useState(false)
-  const [ffmpegLoading, setFfmpegLoading] = useState(false)
-  const [step, setStep] = useState('')
+  const [loading, setLoading]   = useState(false)
+  const [result, setResult]     = useState<SubtitleResult | null>(null)
+  const [error, setError]       = useState('')
+  const [step, setStep]         = useState('')
   const [srtCopied, setSrtCopied] = useState(false)
-  const ffmpegRef = useRef<FFmpeg | null>(null)
-
-  const loadFFmpeg = useCallback(async () => {
-    if (ffmpegRef.current) return
-    setFfmpegLoading(true)
-    try {
-      const ffmpeg = new FFmpeg()
-      const base = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm'
-      await ffmpeg.load({
-        coreURL: await toBlobURL(`${base}/ffmpeg-core.js`, 'text/javascript'),
-        wasmURL: await toBlobURL(`${base}/ffmpeg-core.wasm`, 'application/wasm'),
-      })
-      ffmpegRef.current = ffmpeg
-      setFfmpegReady(true)
-    } catch {
-      setError('FFmpeg yüklenemedi. İnternet bağlantısını kontrol et.')
-    } finally {
-      setFfmpegLoading(false)
-    }
-  }, [])
-
-  useEffect(() => { loadFFmpeg() }, [loadFFmpeg])
 
   const handleAnalyze = async () => {
-    if (!file || !ffmpegRef.current) return
-    setLoading(true)
-    setError('')
-    setResult(null)
+    if (!file) return
+    setLoading(true); setError(''); setResult(null)
     try {
-      const ffmpeg = ffmpegRef.current
-      setStep('Ses çıkarılıyor...')
-      const ext = file.name.split('.').pop() || 'mp4'
-      await ffmpeg.writeFile(`input.${ext}`, await fetchFile(file))
-      await ffmpeg.exec(['-i', `input.${ext}`, '-vn', '-ar', '16000', '-ac', '1', '-b:a', '64k', 'audio.mp3'])
-      const audioRaw = await ffmpeg.readFile('audio.mp3') as Uint8Array
-      const audioCopy = audioRaw.buffer.slice(audioRaw.byteOffset, audioRaw.byteOffset + audioRaw.byteLength) as ArrayBuffer
-      const audioFile = new File([audioCopy], 'audio.mp3', { type: 'audio/mpeg' })
+      const audioFile = await extractAudio(file, setStep)
       setStep('Altyazı oluşturuluyor...')
       const fd = new FormData()
       fd.append('audio', audioFile)
@@ -73,30 +72,25 @@ export default function SubtitlePage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Hata oluştu')
     } finally {
-      setLoading(false)
-      setStep('')
+      setLoading(false); setStep('')
     }
   }
 
   const downloadSrt = () => {
     if (!result) return
-    const blob = new Blob([result.srt], { type: 'text/plain' })
-    const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
-    a.href = url
+    a.href = URL.createObjectURL(new Blob([result.srt], { type: 'text/plain' }))
     a.download = `${file?.name.replace(/\.[^.]+$/, '') || 'subtitle'}.srt`
     a.click()
-    URL.revokeObjectURL(url)
   }
 
   return (
     <div className="flex flex-col h-full">
-      <TopBar title="Altyazı Üretici" description="Video/ses dosyasından otomatik SRT altyazı oluştur" />
+      <TopBar title="Altyazı Üretici" description="Video/ses dosyasından otomatik SRT altyazı — FFmpeg gerekmez" />
       <div className="flex-1 overflow-y-auto">
         <div className="flex gap-6 p-6 h-full">
           <div className="w-80 flex-shrink-0 space-y-4">
-            <div
-              onClick={() => document.getElementById('subtitle-input')?.click()}
+            <div onClick={() => document.getElementById('subtitle-input')?.click()}
               className={cn('border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors',
                 file ? 'border-violet-500/50 bg-violet-500/5' : 'border-zinc-700 hover:border-zinc-500 bg-zinc-800/30')}>
               <input id="subtitle-input" type="file" accept="video/*,audio/*" className="hidden"
@@ -107,9 +101,10 @@ export default function SubtitlePage() {
                   <p className="text-zinc-500 text-xs mt-1">{(file.size / 1024 / 1024).toFixed(1)} MB</p></>
               ) : (
                 <><p className="text-zinc-400 text-sm">Video veya ses dosyası seç</p>
-                  <p className="text-zinc-600 text-xs mt-1">MP4 · MP3 · WAV · MOV</p></>
+                  <p className="text-zinc-600 text-xs mt-1">MP4 · MOV · MP3 · WAV — Boyut sınırı yok</p></>
               )}
             </div>
+
             <div>
               <label className="block text-zinc-400 text-xs font-medium mb-1.5">Dil</label>
               <select value={language} onChange={(e) => setLanguage(e.target.value)}
@@ -121,15 +116,17 @@ export default function SubtitlePage() {
                 <option value="fr">Fransızca</option>
               </select>
             </div>
+
             <div>
-              <label className="block text-zinc-400 text-xs font-medium mb-1.5">Satır Başına Kelime: <span className="text-violet-400">{chunkSize}</span></label>
+              <label className="block text-zinc-400 text-xs font-medium mb-1.5">
+                Satır Başına Kelime: <span className="text-violet-400">{chunkSize}</span>
+              </label>
               <input type="range" min={3} max={8} value={chunkSize} onChange={(e) => setChunkSize(Number(e.target.value))}
                 className="w-full accent-violet-500" />
               <div className="flex justify-between text-zinc-600 text-xs mt-0.5"><span>3</span><span>8</span></div>
             </div>
-            {ffmpegLoading && <div className="flex items-center gap-2 text-zinc-500 text-xs"><Loader2 className="w-3 h-3 animate-spin" />FFmpeg yükleniyor...</div>}
-            {ffmpegReady && !ffmpegLoading && <div className="flex items-center gap-2 text-emerald-500 text-xs"><CheckCircle className="w-3 h-3" />FFmpeg hazır</div>}
-            <button onClick={handleAnalyze} disabled={!file || !ffmpegReady || loading}
+
+            <button onClick={handleAnalyze} disabled={!file || loading}
               className="w-full py-2.5 rounded-lg bg-violet-500 text-white text-sm font-medium hover:bg-violet-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2">
               {loading ? <><Loader2 className="w-4 h-4 animate-spin" />{step || 'İşleniyor...'}</> : 'Altyazı Oluştur'}
             </button>

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { generateContent } from '@/lib/ai/provider'
 import { COLLAB_MAIL_SYSTEM_PROMPT, buildCollabMailPrompt } from '@/lib/ai/prompts'
 import { AIModel } from '@/types'
@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
       prompt: buildCollabMailPrompt(senderName, senderChannel, senderNiche, targetName, dealType, extraNotes),
       model: model as AIModel,
       systemPrompt: COLLAB_MAIL_SYSTEM_PROMPT,
-      maxTokens: 2000,
+      maxTokens: 3000,
     })
 
     let mail: Record<string, unknown> = {}
@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ mail, tokensUsed: result.tokensUsed })
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'Sunucu hatası' }, { status: 500 })
+    return NextResponse.json({ error: e instanceof Error ? e.message : 'Sunucu hatasÄ±' }, { status: 500 })
   }
 }
+

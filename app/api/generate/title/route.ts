@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { generateContent } from '@/lib/ai/provider'
 import { SYSTEM_PROMPTS, buildTitlePrompt } from '@/lib/ai/prompts'
 import { rateLimit, getRateLimitKey } from '@/lib/rateLimit'
@@ -6,7 +6,7 @@ import { TitleGenerateRequest } from '@/types'
 
 export async function POST(req: NextRequest) {
   const { allowed, remaining } = rateLimit(getRateLimitKey(req))
-  if (!allowed) return NextResponse.json({ error: 'Çok fazla istek. 1 dakika bekle.' }, { status: 429 })
+  if (!allowed) return NextResponse.json({ error: 'Ã‡ok fazla istek. 1 dakika bekle.' }, { status: 429 })
 
   try {
     const body: TitleGenerateRequest = await req.json()
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
       prompt: buildTitlePrompt(topic, platform, tone, keywords),
       model,
       systemPrompt: SYSTEM_PROMPTS.titleGenerator,
-      maxTokens: 800,
+      maxTokens: 2000,
     })
 
     let titles: string[] = []
@@ -34,7 +34,8 @@ export async function POST(req: NextRequest) {
       headers: { 'X-RateLimit-Remaining': String(remaining) },
     })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Sunucu hatası'
+    const message = error instanceof Error ? error.message : 'Sunucu hatasÄ±'
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
+
