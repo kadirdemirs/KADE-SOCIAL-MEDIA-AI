@@ -5,8 +5,10 @@ export interface ModelConfig {
   label: string
   shortLabel: string
   description: string
-  provider: 'groq' | 'anthropic' | 'openai' | 'google'
+  provider: 'groq' | 'openrouter' | 'anthropic' | 'openai' | 'google'
   groqModel?: string
+  openRouterModel?: string
+  geminiModel?: string
   colorClass: string
   activeClass: string
   dotClass: string
@@ -68,6 +70,28 @@ export const MODEL_CONFIGS: Record<AIModel, ModelConfig> = {
     activeClass: 'border-amber-300 bg-amber-50 text-amber-700 shadow-sm',
     dotClass: 'bg-amber-400',
   },
+  'openrouter-free': {
+    id: 'openrouter-free',
+    label: 'OpenRouter Free',
+    shortLabel: 'OR Free',
+    description: 'OpenRouter ücretsiz model router',
+    provider: 'openrouter',
+    openRouterModel: 'openrouter/free',
+    colorClass: 'text-fuchsia-400',
+    activeClass: 'border-fuchsia-300 bg-fuchsia-50 text-fuchsia-700 shadow-sm',
+    dotClass: 'bg-fuchsia-400',
+  },
+  'gemini-flash': {
+    id: 'gemini-flash',
+    label: 'Gemini 2.5 Flash',
+    shortLabel: 'Gemini Flash',
+    description: 'Google AI Studio free tier',
+    provider: 'google',
+    geminiModel: 'gemini-2.5-flash',
+    colorClass: 'text-blue-400',
+    activeClass: 'border-blue-300 bg-blue-50 text-blue-700 shadow-sm',
+    dotClass: 'bg-blue-400',
+  },
   claude: {
     id: 'claude',
     label: 'Claude Sonnet',
@@ -103,12 +127,14 @@ export const MODEL_CONFIGS: Record<AIModel, ModelConfig> = {
 export const FREE_GROQ_MODELS: AIModel[] = [
   'groq-llama-70b',
   'groq-gpt-oss-120b',
+  'openrouter-free',
+  'gemini-flash',
   'groq-llama-8b',
   'groq-gpt-oss-20b',
   'groq-qwen-32b',
 ]
 
-export const COMPARE_MODELS: AIModel[] = ['groq-llama-70b', 'groq-gpt-oss-120b', 'groq-qwen-32b']
+export const COMPARE_MODELS: AIModel[] = ['groq-llama-70b', 'openrouter-free', 'gemini-flash']
 
 export function getModelConfig(model: AIModel): ModelConfig {
   return MODEL_CONFIGS[model] || MODEL_CONFIGS['groq-llama-70b']

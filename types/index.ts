@@ -4,6 +4,8 @@ export type AIModel =
   | 'groq-llama-8b'
   | 'groq-gpt-oss-20b'
   | 'groq-qwen-32b'
+  | 'openrouter-free'
+  | 'gemini-flash'
   | 'claude'
   | 'gpt4o'
   | 'gemini'

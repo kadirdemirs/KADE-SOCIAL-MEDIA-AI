@@ -29,6 +29,16 @@ const KEY_DEFS = [
     models: ['Llama 3.3 70B', 'GPT-OSS 120B', 'Llama 3.1 8B', 'Qwen3 32B', 'Whisper'],
   },
   {
+    id: 'OPENROUTER_API_KEY',
+    label: 'OpenRouter (Free Router)',
+    placeholder: 'sk-or-v1-...',
+    url: 'https://openrouter.ai/keys',
+    urlLabel: 'openrouter.ai',
+    color: 'text-fuchsia-400',
+    dot: 'bg-fuchsia-400',
+    models: ['openrouter/free', 'Free model pool'],
+  },
+  {
     id: 'ANTHROPIC_API_KEY',
     label: 'Anthropic (Claude)',
     placeholder: 'sk-ant-...',
@@ -88,6 +98,7 @@ export default function SettingsPage() {
   const [showKeys, setShowKeys]     = useState<Record<string, boolean>>({})
   const [serverEnvStatus, setServerEnvStatus] = useState<Record<string, boolean>>({
     GROQ_API_KEY: false,
+    OPENROUTER_API_KEY: false,
     ANTHROPIC_API_KEY: false,
     OPENAI_API_KEY: false,
     GEMINI_API_KEY: false,
