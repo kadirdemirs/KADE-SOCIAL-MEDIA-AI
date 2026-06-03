@@ -10,6 +10,6 @@ export async function POST(req: NextRequest) {
     let data: Record<string, unknown> = {}
     try { const m = result.content.match(/\{[\s\S]*\}/); if (m) data = JSON.parse(m[0]) } catch { data = { raw: result.content } }
     return NextResponse.json({ data, tokensUsed: result.tokensUsed })
-  } catch (e) { return NextResponse.json({ error: e instanceof Error ? e.message : 'Sunucu hatasÄ±' }, { status: 500 }) }
+  } catch (e) { return NextResponse.json({ error: e instanceof Error ? e.message : 'Sunucu hatası' }, { status: 500 }) }
 }
 

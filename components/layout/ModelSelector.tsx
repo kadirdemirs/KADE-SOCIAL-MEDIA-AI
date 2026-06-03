@@ -1,57 +1,193 @@
 'use client'
 
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AIModel } from '@/types'
 import { useModel } from '@/lib/context/ModelContext'
 import { cn } from '@/lib/utils'
-import { FREE_GROQ_MODELS, getModelConfig } from '@/lib/ai/models'
-import { Sparkles } from 'lucide-react'
+import {
+  MODEL_PROVIDER_GROUPS,
+  ModelProviderId,
+  SELECTABLE_MODELS,
+  getModelConfig,
+} from '@/lib/ai/models'
+import {
+  Brain,
+  Check,
+  ChevronDown,
+  Cpu,
+  Gauge,
+  Gem,
+  Globe2,
+  Route,
+  Sparkles,
+  Zap,
+} from 'lucide-react'
 
 interface ModelSelectorProps {
   value: AIModel
   onChange: (model: AIModel) => void
 }
 
-const models = FREE_GROQ_MODELS.map(getModelConfig)
+type ActiveProvider = ModelProviderId | 'all'
+
+const models = SELECTABLE_MODELS.map(getModelConfig)
+
+const providerIcons: Record<ModelProviderId | 'all', typeof Cpu> = {
+  all: Sparkles,
+  cerebras: Zap,
+  groq: Gauge,
+  openrouter: Route,
+  google: Gem,
+  mistral: Globe2,
+  anthropic: Brain,
+  openai: Cpu,
+}
+
+const speedLabels = {
+  fastest: 'Cok hizli',
+  fast: 'Hizli',
+  balanced: 'Dengeli',
+} as const
 
 export default function ModelSelector({ value, onChange }: ModelSelectorProps) {
   const { isAutoSelected, autoReason } = useModel()
+  const [isOpen, setIsOpen] = useState(false)
+  const [activeProvider, setActiveProvider] = useState<ActiveProvider>('all')
+  const rootRef = useRef<HTMLDivElement>(null)
+  const selected = getModelConfig(value)
+  const SelectedIcon = providerIcons[selected.provider]
+
+  const visibleModels = useMemo(() => {
+    if (activeProvider === 'all') return models
+    return models.filter((model) => model.provider === activeProvider)
+  }, [activeProvider])
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    function handlePointerDown(event: MouseEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+    return () => document.removeEventListener('mousedown', handlePointerDown)
+  }, [isOpen])
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="grid grid-cols-1 gap-1 p-1 rounded-xl bg-zinc-900 border border-zinc-800 sm:grid-cols-2">
-        {models.map((m) => {
-          const isActive = value === m.id
-          return (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => onChange(m.id)}
-              className={cn(
-                'flex items-start gap-2 px-2.5 py-2 rounded-lg text-xs font-medium transition-all duration-150 border text-left',
-                isActive
-                  ? m.activeClass
-                  : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/40 border-transparent'
-              )}
-            >
-              <span className={cn(
-                'w-1.5 h-1.5 rounded-full flex-shrink-0 transition-colors mt-1.5',
-                isActive ? m.dotClass : 'bg-zinc-400'
-              )} />
-              <span className="min-w-0">
-                <span className="flex items-center gap-1">
-                  {m.shortLabel}
-                  {isActive && isAutoSelected && <Sparkles className="w-3 h-3 opacity-60" />}
-                </span>
-                <span className="block text-[10px] font-normal opacity-70 leading-snug">{m.description}</span>
-              </span>
-            </button>
-          )
-        })}
-      </div>
+    <div ref={rootRef} className="relative w-full min-w-[180px] max-w-[480px]">
+      <button
+        type="button"
+        onClick={() => setIsOpen((open) => !open)}
+        className={cn(
+          'flex h-12 w-full items-center justify-between gap-3 rounded-lg border bg-white px-3 text-left shadow-sm transition-colors',
+          isOpen ? 'border-orange-300' : 'border-zinc-700 hover:border-orange-300'
+        )}
+        aria-expanded={isOpen}
+      >
+        <span className="flex min-w-0 items-center gap-2.5">
+          <span className={cn('grid h-8 w-8 place-items-center rounded-lg bg-zinc-950', selected.colorClass)}>
+            <SelectedIcon className="h-4 w-4" />
+          </span>
+          <span className="min-w-0">
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span className="truncate text-xs font-semibold text-zinc-100">{selected.shortLabel}</span>
+              {isAutoSelected && <Sparkles className="h-3 w-3 shrink-0 text-orange-500" />}
+            </span>
+            <span className="block truncate text-[10px] text-zinc-500">
+              {selected.speedLabel || speedLabels[selected.speed || 'balanced']}
+              {selected.contextLabel ? ` / ${selected.contextLabel}` : ''}
+            </span>
+          </span>
+        </span>
+        <ChevronDown className={cn('h-4 w-4 shrink-0 text-zinc-500 transition-transform', isOpen && 'rotate-180')} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 z-50 mt-2 w-[min(92vw,520px)] overflow-hidden rounded-lg border border-zinc-700 bg-white shadow-xl shadow-zinc-800/40">
+          <div className="border-b border-zinc-800 p-2">
+            <div className="grid grid-cols-3 gap-1 sm:grid-cols-6">
+              {MODEL_PROVIDER_GROUPS.map((provider) => {
+                const ProviderIcon = providerIcons[provider.id]
+                const active = activeProvider === provider.id
+                return (
+                  <button
+                    key={provider.id}
+                    type="button"
+                    title={provider.description}
+                    onClick={() => setActiveProvider(provider.id)}
+                    className={cn(
+                      'flex h-8 items-center justify-center gap-1 rounded-lg border px-2 text-[10px] font-semibold transition-colors',
+                      active
+                        ? 'border-orange-300 bg-orange-50 text-orange-700'
+                        : 'border-transparent text-zinc-500 hover:bg-zinc-950 hover:text-zinc-100'
+                    )}
+                  >
+                    <ProviderIcon className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{provider.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="max-h-[420px] overflow-y-auto p-2">
+            <div className="grid gap-1">
+              {visibleModels.map((model) => {
+                const ProviderIcon = providerIcons[model.provider]
+                const isActive = value === model.id
+                return (
+                  <button
+                    key={model.id}
+                    type="button"
+                    onClick={() => {
+                      onChange(model.id)
+                      setActiveProvider(model.provider)
+                      setIsOpen(false)
+                    }}
+                    className={cn(
+                      'grid min-h-16 grid-cols-[2rem_1fr_auto] items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition-colors',
+                      isActive
+                        ? model.activeClass
+                        : 'border-transparent text-zinc-100 hover:border-zinc-700 hover:bg-zinc-950'
+                    )}
+                  >
+                    <span className={cn('grid h-8 w-8 place-items-center rounded-lg bg-white', model.colorClass)}>
+                      <ProviderIcon className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <span className="truncate text-xs font-semibold">{model.label}</span>
+                        {model.badge && (
+                          <span className="shrink-0 rounded border border-current px-1 text-[9px] font-bold opacity-70">
+                            {model.badge}
+                          </span>
+                        )}
+                      </span>
+                      <span className="mt-0.5 block text-[10px] leading-snug opacity-70">{model.description}</span>
+                      <span className="mt-1 flex flex-wrap gap-1 text-[9px] font-semibold opacity-70">
+                        <span>{model.provider.toUpperCase()}</span>
+                        {model.speed && <span>{speedLabels[model.speed]}</span>}
+                        {model.contextLabel && <span>{model.contextLabel}</span>}
+                        {model.free ? <span>Free</span> : <span>API key</span>}
+                      </span>
+                    </span>
+                    <span className="grid h-7 w-7 place-items-center">
+                      {isActive && <Check className="h-4 w-4" />}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {isAutoSelected && autoReason && (
-        <p className="text-zinc-500 text-[10px] flex items-center gap-1 px-1">
-          <Sparkles className="w-2.5 h-2.5 text-orange-400 flex-shrink-0" />
-          {autoReason}
+        <p className="mt-1 flex items-center gap-1 px-1 text-[10px] text-zinc-500">
+          <Sparkles className="h-2.5 w-2.5 shrink-0 text-orange-500" />
+          <span className="truncate">{autoReason}</span>
         </p>
       )}
     </div>

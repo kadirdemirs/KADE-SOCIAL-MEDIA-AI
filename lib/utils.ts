@@ -34,6 +34,9 @@ export function copyToClipboard(text: string): Promise<void> {
 export function checkEnvVars(): void {
   const hasTextProvider = Boolean(
     process.env.GROQ_API_KEY ||
+      process.env.CEREBRAS_API_KEY ||
+      process.env.OPENROUTER_API_KEY ||
+      process.env.MISTRAL_API_KEY ||
       process.env.ANTHROPIC_API_KEY ||
       process.env.OPENAI_API_KEY ||
       process.env.GEMINI_API_KEY

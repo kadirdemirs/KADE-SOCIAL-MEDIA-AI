@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ podcast, tokensUsed: result.tokensUsed })
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'Sunucu hatasÄ±' }, { status: 500 })
+    return NextResponse.json({ error: e instanceof Error ? e.message : 'Sunucu hatası' }, { status: 500 })
   }
 }
 

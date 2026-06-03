@@ -6,11 +6,11 @@ import { IdeasRequest } from '@/types'
 
 export async function POST(req: NextRequest) {
   const { allowed } = rateLimit(getRateLimitKey(req))
-  if (!allowed) return NextResponse.json({ error: 'Ã‡ok fazla istek. 1 dakika bekle.' }, { status: 429 })
+  if (!allowed) return NextResponse.json({ error: 'Çok fazla istek. 1 dakika bekle.' }, { status: 429 })
 
   try {
     const body: IdeasRequest = await req.json()
-    const { niche, platform, model, count = 20, style = 'karÄ±ÅŸÄ±k' } = body
+    const { niche, platform, model, count = 20, style = 'karışık' } = body
 
     if (!niche || !platform || !model) {
       return NextResponse.json({ error: 'Eksik parametreler' }, { status: 400 })
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ideas, model: result.model, tokensUsed: result.tokensUsed })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Sunucu hatasÄ±'
+    const message = error instanceof Error ? error.message : 'Sunucu hatası'
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

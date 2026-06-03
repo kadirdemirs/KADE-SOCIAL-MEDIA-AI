@@ -6,7 +6,7 @@ import { HashtagRequest } from '@/types'
 
 export async function POST(req: NextRequest) {
   const { allowed } = rateLimit(getRateLimitKey(req))
-  if (!allowed) return NextResponse.json({ error: 'Ã‡ok fazla istek. 1 dakika bekle.' }, { status: 429 })
+  if (!allowed) return NextResponse.json({ error: 'Çok fazla istek. 1 dakika bekle.' }, { status: 429 })
 
   try {
     const body: HashtagRequest = await req.json()
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ hashtags, model: result.model, tokensUsed: result.tokensUsed })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Sunucu hatasÄ±'
+    const message = error instanceof Error ? error.message : 'Sunucu hatası'
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

@@ -1,14 +1,40 @@
 export type AIModel =
-  | 'groq-llama-70b'
-  | 'groq-gpt-oss-120b'
-  | 'groq-llama-8b'
-  | 'groq-gpt-oss-20b'
-  | 'groq-qwen-32b'
-  | 'openrouter-free'
-  | 'gemini-flash'
-  | 'claude'
-  | 'gpt4o'
-  | 'gemini'
+  // Groq
+  | 'groq-llama-70b'          // Llama 3.3 70B  ~500 t/s
+  | 'groq-llama4'             // Llama 4 Scout 17B
+  | 'groq-qwen-32b'           // Qwen3 32B
+  | 'groq-llama-8b'           // Llama 3.1 8B
+  | 'groq-gpt-oss-120b'       // GPT-OSS 120B
+  | 'groq-gpt-oss-20b'        // GPT-OSS 20B
+  | 'groq-compound-mini'       // Groq Compound Mini
+  // Cerebras
+  | 'cerebras-glm-4-7'        // Z.ai GLM 4.7 on Cerebras
+  | 'cerebras-gpt-oss-120b'   // GPT-OSS 120B on Cerebras
+  // OpenRouter
+  | 'openrouter-free'         // Genel ucretsiz OR router
+  | 'openrouter-glm-free'     // Z.ai GLM 4.5 Air free
+  | 'openrouter-nemotron-free' // NVIDIA Nemotron 3 Super free
+  | 'openrouter-deepseek-r1'  // DeepSeek R1, kredi gerekir
+  | 'openrouter-llama4'       // Llama 4 Maverick
+  | 'openrouter-qwen3-235b'   // Qwen3 235B, kredi gerekir
+  // Gemini
+  | 'gemini-flash'            // Gemini 2.5 Flash
+  | 'gemini-flash-lite'       // Gemini 2.5 Flash-Lite
+  | 'gemini-flash-latest'     // Gemini Flash latest alias
+  | 'gemini-lite-latest'      // Gemini Flash-Lite latest alias
+  | 'gemini-3-5-flash'        // Gemini 3.5 Flash
+  | 'gemini-3-1-lite'         // Gemini 3.1 Flash Lite
+  // Mistral
+  | 'mistral-nemo'            // Mistral NeMo
+  | 'mistral-small'           // Mistral Small latest
+  | 'mistral-magistral'       // Magistral Small latest
+  | 'mistral-medium'          // Mistral Medium latest
+  | 'mistral-codestral'       // Codestral latest
+  | 'mistral-devstral'        // Devstral latest
+  // Premium
+  | 'claude'                  // Claude Sonnet (ANTHROPIC_API_KEY)
+  | 'gpt4o'                   // GPT-4o (OPENAI_API_KEY)
+  | 'gemini'                  // Gemini Pro (GEMINI_API_KEY)
 
 export type Platform = 'youtube' | 'instagram' | 'tiktok' | 'x' | 'linkedin' | 'pinterest'
 

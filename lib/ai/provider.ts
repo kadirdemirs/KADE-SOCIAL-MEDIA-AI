@@ -1,8 +1,103 @@
 import { GenerateRequest, GenerateResult } from '@/types'
-import { getModelConfig } from '@/lib/ai/models'
+import { ModelConfig, getModelConfig } from '@/lib/ai/models'
 
 function hasEnv(name: string) {
   return Boolean(process.env[name]?.trim())
+}
+
+function fallbackModel(): GenerateRequest['model'] {
+  return 'groq-llama-70b'
+}
+
+async function generateWithFallbackGroq(
+  prompt: string,
+  systemPrompt: string,
+  maxTokens: number
+): Promise<GenerateResult> {
+  return generateWithGroq(prompt, systemPrompt, maxTokens, fallbackModel(), 'llama-3.3-70b-versatile')
+}
+
+async function parseChatCompletionResponse(
+  response: Response,
+  providerName: string
+): Promise<{
+  content: string
+  tokensUsed?: number
+}> {
+  const rawBody = await response.text()
+  let data: {
+    error?: { message?: string }
+    choices?: Array<{ message?: { content?: string | Array<{ type?: string; text?: string }> } }>
+    usage?: { total_tokens?: number }
+  } = {}
+  try {
+    data = rawBody ? JSON.parse(rawBody) : {}
+  } catch {
+    data = {}
+  }
+
+  if (!response.ok) {
+    throw new Error(data.error?.message || `${providerName} istegi basarisiz: ${response.status}`)
+  }
+
+  const rawContent = data.choices?.[0]?.message?.content
+  const content = Array.isArray(rawContent)
+    ? rawContent.map((part) => part.text || '').join('')
+    : rawContent || ''
+
+  return {
+    content,
+    tokensUsed: data.usage?.total_tokens,
+  }
+}
+
+async function generateWithOpenAICompatibleEndpoint({
+  prompt,
+  systemPrompt,
+  maxTokens,
+  requestedModel,
+  providerName,
+  apiKey,
+  endpoint,
+  model,
+  extraHeaders,
+  maxTokenField = 'max_tokens',
+}: {
+  prompt: string
+  systemPrompt: string
+  maxTokens: number
+  requestedModel: GenerateRequest['model']
+  providerName: string
+  apiKey: string
+  endpoint: string
+  model: string
+  extraHeaders?: Record<string, string>
+  maxTokenField?: 'max_tokens' | 'max_completion_tokens'
+}): Promise<GenerateResult> {
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      ...extraHeaders,
+    },
+    body: JSON.stringify({
+      model,
+      [maxTokenField]: maxTokens,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: prompt },
+      ],
+    }),
+  })
+
+  const data = await parseChatCompletionResponse(response, providerName)
+
+  return {
+    content: data.content,
+    model: requestedModel,
+    tokensUsed: data.tokensUsed,
+  }
 }
 
 async function generateWithGroq(
@@ -20,8 +115,8 @@ async function generateWithGroq(
 
   const Groq = (await import('groq-sdk')).default
   const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
-  const fallbackModel = 'llama-3.3-70b-versatile'
-  const targetModel = groqModel || process.env.GROQ_MODEL || fallbackModel
+  const fallback = 'llama-3.3-70b-versatile'
+  const targetModel = groqModel || process.env.GROQ_MODEL || fallback
 
   const createCompletion = (modelName: string) => groq.chat.completions.create({
     model: modelName,
@@ -37,9 +132,9 @@ async function generateWithGroq(
   try {
     response = await createCompletion(targetModel)
   } catch (error) {
-    if (targetModel === fallbackModel) throw error
-    response = await createCompletion(fallbackModel)
-    actualModel = 'groq-llama-70b'
+    if (targetModel === fallback) throw error
+    response = await createCompletion(fallback)
+    actualModel = fallbackModel()
   }
 
   return {
@@ -57,46 +152,122 @@ async function generateWithOpenRouter(
   openRouterModel = 'openrouter/free'
 ): Promise<GenerateResult> {
   if (!hasEnv('OPENROUTER_API_KEY')) {
-    return generateWithGroq(prompt, systemPrompt, maxTokens, 'groq-llama-70b', 'llama-3.3-70b-versatile')
+    return generateWithFallbackGroq(prompt, systemPrompt, maxTokens)
   }
 
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://kadeai.vercel.app',
-      'X-Title': 'KadeAI Studio',
-    },
-    body: JSON.stringify({
+  try {
+    return await generateWithOpenAICompatibleEndpoint({
+      prompt,
+      systemPrompt,
+      maxTokens,
+      requestedModel,
+      providerName: 'OpenRouter',
+      apiKey: process.env.OPENROUTER_API_KEY!,
+      endpoint: 'https://openrouter.ai/api/v1/chat/completions',
       model: openRouterModel,
-      max_tokens: maxTokens,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: prompt },
-      ],
-    }),
+      extraHeaders: {
+        'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://kadeai.vercel.app',
+        'X-Title': 'KadeAI Studio',
+      },
+    })
+  } catch (error) {
+    if (openRouterModel === 'openrouter/free') {
+      return generateWithFallbackGroq(prompt, systemPrompt, maxTokens)
+    }
+    throw error
+  }
+}
+
+async function generateWithCerebrasModel(
+  prompt: string,
+  systemPrompt: string,
+  maxTokens: number,
+  requestedModel: GenerateRequest['model'],
+  cerebrasModel: string
+): Promise<GenerateResult> {
+  return generateWithOpenAICompatibleEndpoint({
+    prompt,
+    systemPrompt,
+    maxTokens,
+    requestedModel,
+    providerName: 'Cerebras',
+    apiKey: process.env.CEREBRAS_API_KEY!,
+    endpoint: 'https://api.cerebras.ai/v1/chat/completions',
+    model: cerebrasModel,
   })
+}
 
-  if (!response.ok) {
-    return generateWithGroq(prompt, systemPrompt, maxTokens, 'groq-llama-70b', 'llama-3.3-70b-versatile')
+async function generateWithCerebras(
+  prompt: string,
+  systemPrompt: string,
+  maxTokens: number,
+  requestedModel: GenerateRequest['model'],
+  cerebrasModel = 'zai-glm-4.7'
+): Promise<GenerateResult> {
+  if (!hasEnv('CEREBRAS_API_KEY')) {
+    return generateWithFallbackGroq(prompt, systemPrompt, maxTokens)
   }
 
-  const data = await response.json() as {
-    choices?: Array<{ message?: { content?: string } }>
-    usage?: { total_tokens?: number }
+  try {
+    return await generateWithCerebrasModel(prompt, systemPrompt, maxTokens, requestedModel, cerebrasModel)
+  } catch (error) {
+    if (cerebrasModel !== 'zai-glm-4.7') {
+      return generateWithCerebrasModel(prompt, systemPrompt, maxTokens, 'cerebras-glm-4-7', 'zai-glm-4.7')
+    }
+    throw error
+  }
+}
+
+async function generateWithGemini(
+  prompt: string,
+  systemPrompt: string,
+  maxTokens: number,
+  model: GenerateRequest['model'],
+  modelConfig: ModelConfig
+): Promise<GenerateResult> {
+  if (!hasEnv('GEMINI_API_KEY')) {
+    return generateWithFallbackGroq(prompt, systemPrompt, maxTokens)
   }
 
-  return {
-    content: data.choices?.[0]?.message?.content || '',
-    model: requestedModel,
-    tokensUsed: data.usage?.total_tokens,
+  const { GoogleGenerativeAI } = await import('@google/generative-ai')
+  const geminiAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
+  const geminiModel = geminiAI.getGenerativeModel({ model: modelConfig.geminiModel || 'gemini-2.5-flash' })
+  const fullPrompt = `${systemPrompt}\n\n${prompt}`
+  const result = await geminiModel.generateContent(fullPrompt)
+  const content = result.response.text()
+  return { content, model }
+}
+
+async function generateWithMistral(
+  prompt: string,
+  systemPrompt: string,
+  maxTokens: number,
+  requestedModel: GenerateRequest['model'],
+  mistralModel = 'open-mistral-nemo'
+): Promise<GenerateResult> {
+  if (!hasEnv('MISTRAL_API_KEY')) {
+    return generateWithOpenRouter(prompt, systemPrompt, maxTokens, requestedModel, 'mistralai/mistral-nemo')
+  }
+
+  try {
+    return await generateWithOpenAICompatibleEndpoint({
+      prompt,
+      systemPrompt,
+      maxTokens,
+      requestedModel,
+      providerName: 'Mistral',
+      apiKey: process.env.MISTRAL_API_KEY!,
+      endpoint: 'https://api.mistral.ai/v1/chat/completions',
+      model: mistralModel,
+    })
+  } catch {
+    return generateWithOpenRouter(prompt, systemPrompt, maxTokens, requestedModel, 'mistralai/mistral-nemo')
   }
 }
 
 export async function generateContent(req: GenerateRequest): Promise<GenerateResult> {
   const { prompt, model, systemPrompt, maxTokens = 1500 } = req
-  const sysText = systemPrompt || 'Sen uzman bir sosyal medya icerik stratejistisisin. Turkce yanit ver.'
+  const sysText = systemPrompt || 'Sen uzman bir sosyal medya icerik stratejistisin. Turkce yanit ver.'
   const modelConfig = getModelConfig(model)
 
   try {
@@ -104,27 +275,25 @@ export async function generateContent(req: GenerateRequest): Promise<GenerateRes
       return generateWithGroq(prompt, sysText, maxTokens, model, modelConfig.groqModel)
     }
 
+    if (modelConfig.provider === 'cerebras') {
+      return generateWithCerebras(prompt, sysText, maxTokens, model, modelConfig.cerebrasModel)
+    }
+
     if (modelConfig.provider === 'openrouter') {
       return generateWithOpenRouter(prompt, sysText, maxTokens, model, modelConfig.openRouterModel)
     }
 
-    if (model === 'gemini-flash') {
-      if (!hasEnv('GEMINI_API_KEY')) {
-        return generateWithGroq(prompt, sysText, maxTokens, 'groq-llama-70b', 'llama-3.3-70b-versatile')
-      }
+    if (modelConfig.provider === 'google' && modelConfig.geminiModel) {
+      return generateWithGemini(prompt, sysText, maxTokens, model, modelConfig)
+    }
 
-      const { GoogleGenerativeAI } = await import('@google/generative-ai')
-      const geminiAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
-      const geminiModel = geminiAI.getGenerativeModel({ model: modelConfig.geminiModel || 'gemini-2.5-flash' })
-      const fullPrompt = `${sysText}\n\n${prompt}`
-      const result = await geminiModel.generateContent(fullPrompt)
-      const content = result.response.text()
-      return { content, model }
+    if (modelConfig.provider === 'mistral') {
+      return generateWithMistral(prompt, sysText, maxTokens, model, modelConfig.mistralModel)
     }
 
     if (model === 'claude') {
       if (!hasEnv('ANTHROPIC_API_KEY')) {
-        return generateWithGroq(prompt, sysText, maxTokens, 'groq-llama-70b', 'llama-3.3-70b-versatile')
+        return generateWithFallbackGroq(prompt, sysText, maxTokens)
       }
 
       const Anthropic = (await import('@anthropic-ai/sdk')).default
@@ -136,7 +305,6 @@ export async function generateContent(req: GenerateRequest): Promise<GenerateRes
           {
             type: 'text',
             text: sysText,
-            // cache_control caches the system prompt across requests with the same content
             cache_control: { type: 'ephemeral' },
           },
         ],
@@ -164,20 +332,6 @@ export async function generateContent(req: GenerateRequest): Promise<GenerateRes
       })
       const content = response.choices[0].message.content || ''
       return { content, model, tokensUsed: response.usage?.total_tokens }
-    }
-
-    if (model === 'gemini') {
-      if (!hasEnv('GEMINI_API_KEY')) {
-        return generateWithGroq(prompt, sysText, maxTokens, 'groq-qwen-32b', 'qwen/qwen3-32b')
-      }
-
-      const { GoogleGenerativeAI } = await import('@google/generative-ai')
-      const geminiAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
-      const geminiModel = geminiAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
-      const fullPrompt = `${sysText}\n\n${prompt}`
-      const result = await geminiModel.generateContent(fullPrompt)
-      const content = result.response.text()
-      return { content, model }
     }
 
     throw new Error(`Bilinmeyen model: ${model}`)

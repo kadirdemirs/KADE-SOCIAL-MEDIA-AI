@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import TopBar from '@/components/layout/TopBar'
+import AIHealthPanel from '@/components/settings/AIHealthPanel'
 import { CheckCircle, XCircle, ExternalLink, Save, Eye, EyeOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -37,6 +38,26 @@ const KEY_DEFS = [
     color: 'text-fuchsia-400',
     dot: 'bg-fuchsia-400',
     models: ['openrouter/free', 'Free model pool'],
+  },
+  {
+    id: 'CEREBRAS_API_KEY',
+    label: 'Cerebras (Hızlı Inference)',
+    placeholder: 'csk-...',
+    url: 'https://cloud.cerebras.ai',
+    urlLabel: 'cloud.cerebras.ai',
+    color: 'text-violet-400',
+    dot: 'bg-violet-400',
+    models: ['GLM 4.7', 'GPT-OSS 120B'],
+  },
+  {
+    id: 'MISTRAL_API_KEY',
+    label: 'Mistral',
+    placeholder: '...',
+    url: 'https://console.mistral.ai',
+    urlLabel: 'console.mistral.ai',
+    color: 'text-red-400',
+    dot: 'bg-red-400',
+    models: ['NeMo', 'Magistral', 'Codestral'],
   },
   {
     id: 'ANTHROPIC_API_KEY',
@@ -98,7 +119,9 @@ export default function SettingsPage() {
   const [showKeys, setShowKeys]     = useState<Record<string, boolean>>({})
   const [serverEnvStatus, setServerEnvStatus] = useState<Record<string, boolean>>({
     GROQ_API_KEY: false,
+    CEREBRAS_API_KEY: false,
     OPENROUTER_API_KEY: false,
+    MISTRAL_API_KEY: false,
     ANTHROPIC_API_KEY: false,
     OPENAI_API_KEY: false,
     GEMINI_API_KEY: false,
@@ -159,6 +182,8 @@ export default function SettingsPage() {
               </span>
             </div>
           </div>
+
+          <AIHealthPanel />
 
           {/* Electron: editable form */}
           {isElectron ? (

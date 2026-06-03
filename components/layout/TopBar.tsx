@@ -31,7 +31,7 @@ export default function TopBar({ title, description }: TopBarProps) {
           )}
         </div>
       </div>
-      <div className="flex-shrink-0 ml-4">
+      <div className="ml-3 w-[190px] flex-shrink-0 sm:ml-4 sm:w-[300px] lg:w-[360px]">
         <ModelSelector value={selectedModel} onChange={setSelectedModel} />
       </div>
     </div>
