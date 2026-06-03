@@ -68,6 +68,7 @@ const KEY_DEFS = [
     color: 'text-orange-400',
     dot: 'bg-orange-400',
     models: ['Claude Sonnet 4.5'],
+    optional: true,
   },
   {
     id: 'OPENAI_API_KEY',
@@ -78,6 +79,7 @@ const KEY_DEFS = [
     color: 'text-emerald-400',
     dot: 'bg-emerald-400',
     models: ['GPT-4o', 'TTS-1-HD'],
+    optional: true,
   },
   {
     id: 'GEMINI_API_KEY',
@@ -117,6 +119,7 @@ export default function SettingsPage() {
   const [saved, setSaved]           = useState(false)
   const [configPath, setConfigPath] = useState('')
   const [showKeys, setShowKeys]     = useState<Record<string, boolean>>({})
+  const [envLoaded, setEnvLoaded]   = useState(false)
   const [serverEnvStatus, setServerEnvStatus] = useState<Record<string, boolean>>({
     GROQ_API_KEY: false,
     CEREBRAS_API_KEY: false,
@@ -135,9 +138,12 @@ export default function SettingsPage() {
       window.electronAPI.getConfig().then((c) => setConfig(c || {}))
       window.electronAPI.getConfigPath().then(setConfigPath)
     } else {
-      fetch('/api/env-status')
+      fetch(`/api/env-status?t=${Date.now()}`, { cache: 'no-store' })
         .then((res) => res.json())
-        .then((status) => setServerEnvStatus(status))
+        .then((status) => {
+          setServerEnvStatus(status)
+          setEnvLoaded(true)
+        })
         .catch(() => {})
     }
   }, [])
@@ -152,9 +158,11 @@ export default function SettingsPage() {
   const toggleShow = (id: string) =>
     setShowKeys((prev) => ({ ...prev, [id]: !prev[id] }))
 
-  const configuredCount = KEY_DEFS.filter((k) =>
+  const requiredKeyDefs = KEY_DEFS.filter((k) => !k.optional)
+  const configuredCount = requiredKeyDefs.filter((k) =>
     isElectron ? !!config[k.id] : serverEnvStatus[k.id]
   ).length
+  const visibleConfiguredCount = envLoaded || isElectron ? configuredCount : 0
 
   return (
     <div className="flex flex-col h-full">
@@ -166,7 +174,11 @@ export default function SettingsPage() {
           <div className="rounded-xl border border-zinc-700/50 bg-zinc-800/50 p-5 flex items-center justify-between">
             <div>
               <h2 className="text-zinc-200 font-medium">Sistem Durumu</h2>
-              <p className="text-zinc-500 text-sm mt-0.5">{configuredCount}/{KEY_DEFS.length} API anahtarı yapılandırıldı</p>
+              <p className="text-zinc-500 text-sm mt-0.5">
+                {envLoaded || isElectron
+                  ? `${visibleConfiguredCount}/${requiredKeyDefs.length} temel API anahtarı yapılandırıldı`
+                  : 'API anahtarları kontrol ediliyor'}
+              </p>
               {isElectron && (
                 <p className="text-violet-400 text-xs mt-1">Masaüstü uygulama — anahtarlar yerel olarak saklanır</p>
               )}
@@ -175,10 +187,10 @@ export default function SettingsPage() {
               <svg viewBox="0 0 36 36" className="rotate-[-90deg] w-full h-full">
                 <circle cx="18" cy="18" r="14" fill="none" stroke="#27272a" strokeWidth="3" />
                 <circle cx="18" cy="18" r="14" fill="none" stroke="#8b5cf6" strokeWidth="3"
-                  strokeDasharray={`${(configuredCount / KEY_DEFS.length) * 88} 88`} strokeLinecap="round" />
+                  strokeDasharray={`${(visibleConfiguredCount / requiredKeyDefs.length) * 88} 88`} strokeLinecap="round" />
               </svg>
               <span className="absolute inset-0 flex items-center justify-center text-zinc-200 text-sm font-semibold">
-                {Math.round((configuredCount / KEY_DEFS.length) * 100)}%
+                {Math.round((visibleConfiguredCount / requiredKeyDefs.length) * 100)}%
               </span>
             </div>
           </div>
@@ -254,15 +266,24 @@ export default function SettingsPage() {
               <div className="space-y-3">
                 {KEY_DEFS.map((k) => {
                   const ok = serverEnvStatus[k.id] ?? false
+                  const optionalMissing = !ok && k.optional
                   return (
                     <div key={k.id} className={cn('rounded-xl border p-4 space-y-2',
-                      ok ? 'border-zinc-700/50 bg-zinc-800/30' : 'border-red-500/20 bg-red-500/5')}>
+                      ok
+                        ? 'border-zinc-700/50 bg-zinc-800/30'
+                        : optionalMissing
+                          ? 'border-amber-500/20 bg-amber-500/5'
+                          : 'border-red-500/20 bg-red-500/5')}>
                       <div className="flex items-center gap-2">
                         <span className={cn('w-2.5 h-2.5 rounded-full', k.dot)} />
                         <span className={cn('text-sm font-medium', k.color)}>{k.label}</span>
                         <span className="ml-auto flex items-center gap-1 text-xs">
-                          {ok
+                          {!envLoaded
+                            ? <span className="text-zinc-500">Kontrol ediliyor</span>
+                            : ok
                             ? <><CheckCircle className="w-3.5 h-3.5 text-emerald-400" /><span className="text-emerald-400">Yapılandırıldı</span></>
+                            : optionalMissing
+                              ? <span className="text-amber-500">Opsiyonel</span>
                             : <><XCircle className="w-3.5 h-3.5 text-red-400" /><span className="text-red-400">Eksik</span></>
                           }
                         </span>

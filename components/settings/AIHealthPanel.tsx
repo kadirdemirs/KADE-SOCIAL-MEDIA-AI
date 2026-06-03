@@ -63,7 +63,7 @@ export default function AIHealthPanel() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/env-status')
+    fetch(`/api/env-status?t=${Date.now()}`, { cache: 'no-store' })
       .then((res) => res.json())
       .then((data) => setStatus(data))
       .catch(() => setStatus({}))

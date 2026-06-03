@@ -11,10 +11,16 @@ const ENV_KEYS = [
   'NEXT_PUBLIC_SITE_URL',
 ] as const
 
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   const status = Object.fromEntries(
     ENV_KEYS.map((key) => [key, Boolean(process.env[key]?.trim())])
   )
 
-  return Response.json(status)
+  return Response.json(status, {
+    headers: {
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+    },
+  })
 }
